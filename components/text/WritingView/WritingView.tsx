@@ -6,24 +6,30 @@ import { EvolveButton } from "@/components/text/WritingView/EvolveButton";
 interface WritingViewProps {
   draft: string;
   onDraftChange: (value: string) => void;
+  onPublish?: () => void;
+  onStartNewScene?: () => void;
   hasWorldStarted?: boolean;
   hasUnpublishedText?: boolean;
   replayMode?: boolean;
   currentReplaySceneName?: string;
+  isSubmitting?: boolean;
 }
 
 export function WritingView({
   draft,
   onDraftChange,
+  onPublish,
+  onStartNewScene,
   hasWorldStarted = false,
   hasUnpublishedText = false,
   replayMode = false,
   currentReplaySceneName = "Scene 1",
+  isSubmitting = false,
 }: WritingViewProps) {
   const isBelowThreshold = !hasWorldStarted && draft.trim().length < 100;
-  const disabled = replayMode || (hasWorldStarted ? !hasUnpublishedText : isBelowThreshold);
+  const disabled = replayMode || isSubmitting || (hasWorldStarted ? !hasUnpublishedText : isBelowThreshold);
   const label = hasWorldStarted ? "Evolve" : "Conjure World";
-  const newSceneDisabled = replayMode || !hasWorldStarted;
+  const newSceneDisabled = replayMode || isSubmitting || !hasWorldStarted;
 
   return (
     <section className="flex min-w-[360px] flex-[2] flex-col bg-[color:var(--bg-surface)]">
@@ -52,6 +58,7 @@ export function WritingView({
           <button
             className="rounded-xl border px-4 py-3 text-sm font-semibold"
             disabled={newSceneDisabled}
+            onClick={onStartNewScene}
             style={{
               borderColor: "var(--border)",
               background: newSceneDisabled ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.04)",
@@ -62,7 +69,7 @@ export function WritingView({
             Start New Scene
           </button>
           <div className="flex-1">
-            <EvolveButton label={label} disabled={disabled} />
+            <EvolveButton label={label} disabled={disabled} loading={isSubmitting} onClick={onPublish} />
           </div>
         </div>
       </div>

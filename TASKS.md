@@ -23,6 +23,7 @@
 - [x] Implement AI reconstruct route
 - [x] Implement storage signed URL routes
 - [x] Replace mock session / scene / segment API handlers with Prisma-backed persistence
+- [x] Add publish route to persist draft, scene transitions, mock segment start, and world-state snapshots
 
 ## Phase 3: Frontend MVP Shell
 
@@ -34,6 +35,8 @@
 - [x] Add mock session list and query-driven session state screens
 - [x] Align replay header and manual scene controls with the writing-only MVP rules
 - [x] Switch session list and session detail pages to prefer real Prisma-backed data
+- [x] Wire Conjure World / Evolve / Start New Scene to real API actions
+- [x] Make timeline scene thumbnails interactive for replay and back-to-current flow
 
 ## Phase 4: Integrations
 
@@ -47,7 +50,7 @@
 
 - [x] Run local typecheck / lint
 - [ ] Smoke-test core writing flow locally against Railway Postgres
-- [x] Document env vars and deployment steps
+- [x] Document env vars, interactions, and deployment steps
 - [ ] Configure Railway pre-deploy migration and verify public routes
 
 ## Notes

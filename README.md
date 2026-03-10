@@ -44,14 +44,23 @@ Core flow:
 6. Generate a public domain for the app service
 7. Set the app service Pre-deploy Command to `npm run prisma:deploy`
 8. Open the deployed app and validate the demo routes
+9. Verify `/sessions` and `/session/new` against the live database
 
 ## Interaction rules
 
 - `Evolve` updates the current scene only.
 - `Start New Scene` creates a new scene inside the same session.
+- Timeline thumbnails are clickable; selecting a historical scene enters replay.
 - Replay is memory-only and does not branch.
 - `Back to Current` returns to the current scene's sleeping state.
 - Scene history is world memory, not a separate writing document.
+
+## Current implementation status
+
+- Session list and session detail pages are backed by Prisma on Railway Postgres.
+- `Conjure World` / `Evolve` now use a real `/api/sessions/[id]/publish` route.
+- `Start New Scene` persists a new scene and resets the current scene to pre-world state.
+- Odyssey playback and recording are still mock-scaffolded until the browser integration path is finalized.
 
 ## Demo routes
 

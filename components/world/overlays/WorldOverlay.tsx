@@ -8,20 +8,22 @@ import { TransitionOverlay } from "@/components/world/overlays/TransitionOverlay
 interface WorldOverlayProps {
   liveState: LiveState;
   sceneName: string;
+  onBackToCurrent?: () => void;
+  onWake?: () => void;
 }
 
-export function WorldOverlay({ liveState, sceneName }: WorldOverlayProps) {
+export function WorldOverlay({ liveState, sceneName, onBackToCurrent, onWake }: WorldOverlayProps) {
   switch (liveState) {
     case "starting":
       return <StartingOverlay />;
     case "sleeping":
-      return <SleepOverlay />;
+      return <SleepOverlay onWake={onWake} />;
     case "resuming":
       return <ResumingOverlay />;
     case "transitioning":
       return <TransitionOverlay sceneName={sceneName} />;
     case "replay":
-      return <ReplayOverlay sceneName={sceneName} />;
+      return <ReplayOverlay sceneName={sceneName} onBack={onBackToCurrent} />;
     case "error":
       return (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-950/20">

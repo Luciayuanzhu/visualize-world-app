@@ -26,6 +26,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const nextIndex = (session.scenes[0]?.index ?? 0) + 1;
 
+  if (session.currentSceneId) {
+    await db.scene.update({
+      where: { id: session.currentSceneId },
+      data: {
+        status: "complete",
+        draftOffsetEnd: parsed.data.draftOffsetStart ?? undefined,
+      },
+    });
+  }
+
   const scene = await db.scene.create({
     data: {
       sessionId: id,
@@ -49,6 +59,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       name: scene.name,
       index: scene.index,
       status: scene.status,
+      hasStarted: false,
     },
     { status: 201 },
   );

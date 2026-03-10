@@ -57,6 +57,10 @@ export const createSceneSchema = z.object({
   draftOffsetStart: z.number().int().nonnegative().optional(),
 });
 
+export const publishSessionSchema = z.object({
+  draft: z.string(),
+});
+
 export const evolveRequestSchema = z.object({
   sessionId: z.string().min(1),
   delta: z.string(),

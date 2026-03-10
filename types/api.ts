@@ -17,6 +17,7 @@ export interface SessionDetail extends SessionSummary {
     index: number;
     name: string;
     status: string;
+    hasStarted: boolean;
   }>;
   worldState: WorldState | null;
 }
@@ -47,6 +48,24 @@ export interface UpdateSessionRequest {
 export interface CreateSceneRequest {
   name?: string;
   draftOffsetStart?: number;
+}
+
+export interface CreateSceneResponse {
+  id: string;
+  index: number;
+  name: string;
+  status: string;
+  hasStarted: boolean;
+}
+
+export interface PublishSessionRequest {
+  draft: string;
+}
+
+export interface PublishSessionResponse {
+  session: SessionDetail;
+  action: ActionPlan;
+  worldStateUpdates?: WorldStateUpdates;
 }
 
 export interface ReconstructRequest {

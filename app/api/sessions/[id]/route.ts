@@ -10,7 +10,12 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const session = await db.worldSession.findFirst({
     where: { id, userId: user.uid },
     include: {
-      scenes: { orderBy: { index: "asc" } },
+      scenes: {
+        orderBy: { index: "asc" },
+        include: {
+          segments: { select: { id: true }, take: 1 },
+        },
+      },
       revisions: { orderBy: { createdAt: "desc" }, take: 1 },
       snapshots: { orderBy: { createdAt: "desc" }, take: 1 },
     },

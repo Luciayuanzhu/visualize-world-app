@@ -1,12 +1,14 @@
 interface SceneThumbnailProps {
   name: string;
   active?: boolean;
+  onClick?: () => void;
 }
 
-export function SceneThumbnail({ name, active = false }: SceneThumbnailProps) {
+export function SceneThumbnail({ name, active = false, onClick }: SceneThumbnailProps) {
   return (
     <button
       className="flex min-w-[120px] items-center gap-2 rounded-lg border p-2"
+      onClick={onClick}
       style={{
         borderColor: active ? "var(--accent)" : "var(--border)",
         background: active ? "rgba(219,166,31,0.12)" : "rgba(255,255,255,0.03)",

@@ -4,9 +4,10 @@ import { SceneThumbnail } from "@/components/layout/Timeline/SceneThumbnail";
 interface TimelineProps {
   scenes: Array<{ id: string; name: string }>;
   activeSceneId?: string | null;
+  onSelectScene?: (sceneId: string) => void;
 }
 
-export function Timeline({ scenes, activeSceneId }: TimelineProps) {
+export function Timeline({ scenes, activeSceneId, onSelectScene }: TimelineProps) {
   return (
     <footer className="flex h-[72px] items-center gap-3 border-t px-4" style={{ borderColor: "var(--border)", background: "rgba(15,12,8,0.96)" }}>
       {scenes.length === 0 ? (
@@ -17,7 +18,7 @@ export function Timeline({ scenes, activeSceneId }: TimelineProps) {
         <>
           <div className="flex flex-1 gap-3 overflow-x-auto">
             {scenes.map((scene) => (
-              <SceneThumbnail key={scene.id} name={scene.name} active={scene.id === activeSceneId} />
+              <SceneThumbnail key={scene.id} name={scene.name} active={scene.id === activeSceneId} onClick={() => onSelectScene?.(scene.id)} />
             ))}
           </div>
           <NowMarker />

@@ -6,9 +6,13 @@ import type { LiveState } from "@/types/world";
 export function WorldPanel({
   liveState,
   sceneName,
+  onBackToCurrent,
+  onWake,
 }: {
   liveState: LiveState;
   sceneName?: string;
+  onBackToCurrent?: () => void;
+  onWake?: () => void;
 }) {
   return (
     <section className="relative min-w-[480px] flex-[3] overflow-hidden border-r bg-black" style={{ borderColor: "var(--border)" }}>
@@ -46,7 +50,7 @@ export function WorldPanel({
           World reacting…
         </div>
       ) : null}
-      <WorldOverlay liveState={liveState} sceneName={sceneName ?? "Vault Opening"} />
+      <WorldOverlay liveState={liveState} sceneName={sceneName ?? "Vault Opening"} onBackToCurrent={onBackToCurrent} onWake={onWake} />
     </section>
   );
 }

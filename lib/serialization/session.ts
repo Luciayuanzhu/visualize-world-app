@@ -1,9 +1,17 @@
 import type { SessionDetail, SessionSummary } from "@/types/api";
 import type { WorldState } from "@/types/world";
-import type { EditorRevision, Scene, WorldSession, WorldStateSnapshot } from "@prisma/client";
+import type { EditorRevision, StreamSegment, WorldSession, WorldStateSnapshot } from "@prisma/client";
 
 type SessionWithRelations = WorldSession & {
-  scenes: Scene[];
+  scenes: Array<{
+    id: string;
+    index: number;
+    name: string;
+    status: string;
+    draftOffsetStart: number;
+    draftOffsetEnd: number | null;
+    segments: Array<Pick<StreamSegment, "id">>;
+  }>;
   revisions: EditorRevision[];
   snapshots: WorldStateSnapshot[];
 };
@@ -42,6 +50,7 @@ export function toSessionDetail(session: SessionWithRelations): SessionDetail {
       index: scene.index,
       name: scene.name,
       status: scene.status,
+      hasStarted: scene.segments.length > 0,
     })),
     worldState: latestSnapshot ? toWorldState(latestSnapshot) : EMPTY_WORLD_STATE,
   };
