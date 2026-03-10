@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { reconstructWorldState } from "@/lib/gemini";
+import { logServer } from "@/lib/server-log";
 import { toSessionDetail } from "@/lib/serialization/session";
 import { EMPTY_WORLD_STATE } from "@/lib/world-state";
 
@@ -28,6 +29,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   });
 
   if (!session) {
+    logServer("warn", "wake session not found", { sessionId: id, userId: user.uid });
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
@@ -35,6 +37,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
     session.scenes.find((scene) => scene.id === session.currentSceneId) ?? session.scenes[session.scenes.length - 1] ?? null;
 
   if (!currentScene) {
+    logServer("warn", "wake missing current scene", { sessionId: id });
     return NextResponse.json({ error: "No active scene" }, { status: 400 });
   }
 

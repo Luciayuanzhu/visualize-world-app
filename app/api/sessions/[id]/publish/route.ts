@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { evolveWorld, generateSceneTitle, generateSessionTitle } from "@/lib/gemini";
+import { logServer } from "@/lib/server-log";
 import { toSessionDetail } from "@/lib/serialization/session";
 import { publishSessionSchema } from "@/lib/validation/contracts";
 import { EMPTY_WORLD_STATE, mergeWorldState } from "@/lib/world-state";
@@ -14,6 +15,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const parsed = publishSessionSchema.safeParse(body);
 
   if (!parsed.success) {
+    logServer("warn", "publish invalid payload", { sessionId: id });
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
@@ -32,6 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   });
 
   if (!session) {
+    logServer("warn", "publish session not found", { sessionId: id, userId: user.uid });
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
@@ -230,6 +233,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       updatedSession,
       launch,
     };
+  });
+
+  logServer("info", "publish completed", {
+    sessionId: id,
+    actionType: actionResult.action.type,
+    launchSegmentId: result.launch?.segmentId ?? null,
   });
 
   return NextResponse.json({

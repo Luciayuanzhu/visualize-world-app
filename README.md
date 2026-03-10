@@ -85,6 +85,9 @@ Core flow:
 - Replay resolves a recording URL when available and falls back to a frame-image route when not.
 - The browser now uses the official `@odysseyml/odyssey` package through the local wrapper for live `connect / startStream / interact / endStream`.
 - `publish` and `wake` create `starting` segments; the client completes the lifecycle via `start-ack`.
+- If a live Odyssey stream disconnects or ends, the UI now drops into `sleeping` instead of silently looking like replay.
+- Explicit replay is the only state that loops video playback.
+- Browser-side Odyssey/runtime failures are mirrored to `POST /api/client-log`, so they show up in Railway logs as server events.
 - Recording finalization is still partial. The app preserves last-frame continuity, but full Odyssey recording retrieval is not finalized yet.
 
 ## Demo routes

@@ -87,6 +87,9 @@ export function SessionShell({
   const [odysseyConfig, setOdysseyConfig] = useState<OdysseyClientConfigResponse>({ enabled: false, mode: "mock" });
   const odysseyClientRef = useRef<OdysseyClientHandle | null>(null);
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
+  const liveStateRef = useRef<LiveState>(initialLiveState);
+  const currentSceneStartedRef = useRef(initialSceneStarted);
+  const replayModeRef = useRef(initialLiveState === "replay");
   const { captureFrame } = useFrameCapture();
 
   const replayMode = liveState === "replay";
@@ -110,6 +113,18 @@ export function SessionShell({
     const currentIndex = scenes.findIndex((scene) => scene.id === currentSceneId);
     return currentIndex >= 0 && currentIndex < scenes.length - 1 ? scenes[currentIndex + 1] : null;
   }, [scenes, currentSceneId]);
+
+  useEffect(() => {
+    liveStateRef.current = liveState;
+  }, [liveState]);
+
+  useEffect(() => {
+    currentSceneStartedRef.current = currentSceneStarted;
+  }, [currentSceneStarted]);
+
+  useEffect(() => {
+    replayModeRef.current = replayMode;
+  }, [replayMode]);
   const replayScene = useMemo(
     () => scenes.find((scene) => scene.id === replaySceneId) ?? null,
     [scenes, replaySceneId],
@@ -212,6 +227,35 @@ export function SessionShell({
     };
   }, [scenes, currentSceneId, loadFrameUrl]);
 
+  const logClientEvent = useCallback(
+    async (level: "info" | "warn" | "error", message: string, meta?: Record<string, unknown>) => {
+      const payload = {
+        level,
+        message,
+        meta: {
+          sessionId,
+          currentSceneId,
+          liveState: liveStateRef.current,
+          ...meta,
+        },
+      };
+
+      try {
+        await fetch("/api/client-log", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+          keepalive: true,
+        });
+      } catch (error) {
+        console.error(error);
+      }
+    },
+    [currentSceneId, sessionId],
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -233,21 +277,39 @@ export function SessionShell({
           onConnected(stream) {
             if (!cancelled) {
               setLiveMediaStream(stream);
+              if (liveStateRef.current === "starting" || liveStateRef.current === "resuming" || liveStateRef.current === "sleeping") {
+                setLiveState("live");
+              }
             }
           },
           onDisconnected() {
             if (!cancelled) {
               setLiveMediaStream(null);
+              void logClientEvent("warn", "odyssey stream disconnected", {
+                replayMode: replayModeRef.current,
+              });
+              if (!replayModeRef.current && currentSceneStartedRef.current) {
+                setLiveState("sleeping");
+              }
             }
           },
           onStreamEnded() {
             if (!cancelled) {
               setLiveMediaStream(null);
+              void logClientEvent("info", "odyssey stream ended", {
+                replayMode: replayModeRef.current,
+              });
+              if (!replayModeRef.current && currentSceneStartedRef.current) {
+                setLiveState("sleeping");
+              }
             }
           },
           onError(error) {
             console.error(error);
             if (!cancelled) {
+              void logClientEvent("error", "odyssey handler error", {
+                message: error.message,
+              });
               setLiveState("error");
             }
           },
@@ -255,6 +317,9 @@ export function SessionShell({
       })
       .catch((error) => {
         console.error(error);
+        void logClientEvent("error", "odyssey config bootstrap failed", {
+          message: error instanceof Error ? error.message : "unknown",
+        });
       });
 
     return () => {
@@ -262,7 +327,7 @@ export function SessionShell({
       odysseyClientRef.current?.disconnect();
       odysseyClientRef.current = null;
     };
-  }, []);
+  }, [logClientEvent]);
 
   useInactivitySleep(
     8 * 60_000,
@@ -324,15 +389,33 @@ export function SessionShell({
       odysseyClientRef.current = createOdysseyClient(odysseyConfig, {
         onConnected(stream) {
           setLiveMediaStream(stream);
+          if (liveStateRef.current === "starting" || liveStateRef.current === "resuming" || liveStateRef.current === "sleeping") {
+            setLiveState("live");
+          }
         },
         onDisconnected() {
           setLiveMediaStream(null);
+          void logClientEvent("warn", "odyssey stream disconnected", {
+            replayMode: replayModeRef.current,
+          });
+          if (!replayModeRef.current && currentSceneStartedRef.current) {
+            setLiveState("sleeping");
+          }
         },
         onStreamEnded() {
           setLiveMediaStream(null);
+          void logClientEvent("info", "odyssey stream ended", {
+            replayMode: replayModeRef.current,
+          });
+          if (!replayModeRef.current && currentSceneStartedRef.current) {
+            setLiveState("sleeping");
+          }
         },
         onError(error) {
           console.error(error);
+          void logClientEvent("error", "odyssey handler error", {
+            message: error.message,
+          });
           setLiveState("error");
         },
       });
@@ -356,6 +439,9 @@ export function SessionShell({
       frameKey = await reserveFrameKey(sceneId);
     } catch (error) {
       console.error(error);
+      void logClientEvent("error", "frame capture failed", {
+        message: error instanceof Error ? error.message : "unknown",
+      });
     }
 
     await ensureOdysseyClient().endStream();
@@ -373,6 +459,10 @@ export function SessionShell({
       });
     } catch (error) {
       console.error(error);
+      void logClientEvent("error", "segment end ack failed", {
+        segmentId,
+        message: error instanceof Error ? error.message : "unknown",
+      });
     }
 
     return frameKey;
@@ -390,6 +480,10 @@ export function SessionShell({
         }
       } catch (error) {
         console.error(error);
+        void logClientEvent("warn", "frame seed load failed", {
+          frameKey,
+          message: error instanceof Error ? error.message : "unknown",
+        });
       }
     }
 
@@ -406,6 +500,10 @@ export function SessionShell({
     });
 
     if (!ackResponse.ok) {
+      void logClientEvent("error", "segment start ack failed", {
+        segmentId,
+        status: ackResponse.status,
+      });
       throw new Error(`Segment start ack failed with ${ackResponse.status}`);
     }
   }

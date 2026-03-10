@@ -2,8 +2,8 @@
 
 import { forwardRef, useEffect } from "react";
 
-export const VideoStream = forwardRef<HTMLVideoElement, { src?: string | null; mediaStream?: MediaStream | null }>(function VideoStream(
-  { src, mediaStream },
+export const VideoStream = forwardRef<HTMLVideoElement, { src?: string | null; mediaStream?: MediaStream | null; loop?: boolean }>(function VideoStream(
+  { src, mediaStream, loop = false },
   ref,
 ) {
   useEffect(() => {
@@ -24,5 +24,5 @@ export const VideoStream = forwardRef<HTMLVideoElement, { src?: string | null; m
     return null;
   }
 
-  return <video ref={ref} className="absolute inset-0 h-full w-full object-cover" muted playsInline autoPlay loop={Boolean(src)} src={src ?? undefined} />;
+  return <video ref={ref} className="absolute inset-0 h-full w-full object-cover" muted playsInline autoPlay loop={loop} src={src ?? undefined} />;
 });

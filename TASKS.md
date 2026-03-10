@@ -54,6 +54,8 @@
 - [x] Add Gemini-generated scene/world title fallback
 - [x] Integrate the official Odyssey browser client package behind the local wrapper
 - [x] Move publish/wake stream ownership to the browser with start-ack flow
+- [x] Prevent live streams from visually falling back into replay when they end unexpectedly
+- [x] Add browser-to-server client error logging for Odyssey/runtime issues
 - [ ] Add real recording/finalizer flow beyond frame fallback
 
 ## Phase 5: Validation

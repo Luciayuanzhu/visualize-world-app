@@ -25,7 +25,14 @@ export function WorldPanel({
   onBackToCurrent?: () => void;
   onWake?: () => void;
 }) {
-  const backgroundImage = liveState === "replay" ? (replayMediaKind === "image" ? replayMediaUrl : null) : currentFrameUrl;
+  const backgroundImage =
+    liveState === "replay"
+      ? replayMediaKind === "image"
+        ? replayMediaUrl
+        : null
+      : liveState === "sleeping" || liveState === "resuming"
+        ? currentFrameUrl
+        : null;
 
   return (
     <section className="relative min-w-[480px] flex-[3] overflow-hidden border-r bg-black" style={{ borderColor: "var(--border)" }}>
@@ -49,6 +56,7 @@ export function WorldPanel({
         ref={liveVideoRef}
         mediaStream={liveState !== "replay" ? liveMediaStream : null}
         src={liveState === "replay" && replayMediaKind === "video" ? replayMediaUrl : null}
+        loop={liveState === "replay" && replayMediaKind === "video"}
       />
       <WorldStatusBar visible={liveState === "updating"} />
       {liveState === "live" ? (

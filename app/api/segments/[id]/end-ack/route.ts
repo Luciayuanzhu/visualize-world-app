@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { logServer } from "@/lib/server-log";
 import { endAckSchema } from "@/lib/validation/contracts";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -8,6 +9,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const parsed = endAckSchema.safeParse(body);
 
   if (!parsed.success) {
+    logServer("warn", "segment end ack invalid payload", { segmentId: id });
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
@@ -16,6 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   });
 
   if (!segment) {
+    logServer("warn", "segment end ack missing segment", { segmentId: id });
     return NextResponse.json({ error: "Segment not found" }, { status: 404 });
   }
 
@@ -41,6 +44,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     });
   }
+
+  logServer("info", "segment end ack stored", {
+    segmentId: id,
+    lastFrameKey: parsed.data.lastFrameKey ?? null,
+    recordingVideoKey: parsed.data.recordingVideoKey ?? null,
+  });
 
   return NextResponse.json({ ok: true, segmentId: id, ...parsed.data });
 }
