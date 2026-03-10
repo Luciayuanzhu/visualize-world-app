@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model WorldSession {
+  id             String               @id @default(uuid()) @db.Uuid
+  userId         String
+  title          String               @default("Untitled World")
+  currentSceneId String?              @db.Uuid
+  status         String               @default("active")
+  leaseOwner     String?
+  leaseToken     String?
+  leaseExpiresAt DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  scenes         Scene[]
+  revisions      EditorRevision[]
+  snapshots      WorldStateSnapshot[]
+  segments       StreamSegment[]
+}
+
+model Scene {
+  id              String              @id @default(uuid()) @db.Uuid
+  sessionId       String              @db.Uuid
+  index           Int
+  name            String
+  draftOffsetStart Int                @default(0)
+  draftOffsetEnd  Int?
+  stateSnapshotId String?             @db.Uuid
+  status          String              @default("active")
+  createdAt       DateTime            @default(now())
+  session         WorldSession        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  segments        StreamSegment[]
+  snapshots       WorldStateSnapshot[]
+  frames          FrameCapture[]
+
+  @@index([sessionId, index])
+}
+
+model StreamSegment {
+  id                    String       @id @default(uuid()) @db.Uuid
+  sceneId               String       @db.Uuid
+  sessionId             String       @db.Uuid
+  odysseyStreamId       String?
+  status                String       @default("starting")
+  startedAt             DateTime     @default(now())
+  endedAt               DateTime?
+  lastFrameKey          String?
+  recordingVideoKey     String?
+  recordingThumbnailKey String?
+  recordingEventsKey    String?
+  scene                 Scene        @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  session               WorldSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  frames                FrameCapture[]
+
+  @@index([sceneId])
+  @@index([sessionId])
+}
+
+model FrameCapture {
+  id            String   @id @default(uuid()) @db.Uuid
+  segmentId     String   @db.Uuid
+  sceneId       String   @db.Uuid
+  capturedAt    DateTime @default(now())
+  frameKey      String
+  captureReason String
+  segment       StreamSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  scene         Scene         @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  @@index([segmentId, capturedAt(sort: Desc)])
+}
+
+model WorldStateSnapshot {
+  id           String       @id @default(uuid()) @db.Uuid
+  sessionId    String       @db.Uuid
+  sceneId      String?      @db.Uuid
+  canonFacts   Json         @default("[]")
+  sceneState   Json         @default("{}")
+  styleGuide   Json         @default("{}")
+  directorCues Json         @default("[]")
+  createdAt    DateTime     @default(now())
+  session      WorldSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  scene        Scene?       @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt(sort: Desc)])
+}
+
+model EditorRevision {
+  id                  String       @id @default(uuid()) @db.Uuid
+  sessionId           String       @db.Uuid
+  content             String
+  publishedFromOffset Int?
+  createdAt           DateTime     @default(now())
+  session             WorldSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt(sort: Desc)])
+}
+
+model Job {
+  id        String   @id @default(uuid()) @db.Uuid
+  type      String
+  payload   Json     @default("{}")
+  status    String   @default("pending")
+  attempts  Int      @default(0)
+  runAt     DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  @@index([status, runAt])
+}

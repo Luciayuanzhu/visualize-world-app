@@ -1,0 +1,119 @@
+import type { SessionDetail, SessionSummary } from "@/types/api";
+import type { LiveState, WorldState } from "@/types/world";
+
+export const DEMO_DRAFT = `Chapter 4: The Glimmering Vault
+
+The air inside the vault tasted of ozone and ancient parchment. Elias traced his fingers along the copper casing of the relay, feeling the faint hum of energy vibrating through the metal. It had been decades since anyone had dared to wake the system.
+
+"Is it ready?" Sarah whispered from the doorway.
+
+Elias watched the first glow begin to pulse inside the central sphere. The light moved like a heartbeat through the machinery, golden and patient, as though the world itself had been waiting for someone to speak to it again.
+
+He did not answer at once. The gears beneath the floor were already shifting.
+`;
+
+export const DEMO_WORLD_STATE: WorldState = {
+  canonFacts: ["A dormant vault lies beneath the city.", "The relay has begun to awaken."],
+  sceneState: {
+    location: "The Glimmering Vault",
+    timeOfDay: "Dusk",
+    weather: "Still air",
+    mood: "Tense, reverent",
+    characters: ["Elias", "Sarah"],
+    props: ["Copper relay", "Central sphere", "Ancient shelves"],
+    camera: "Slow forward drift",
+  },
+  styleGuide: {
+    realism: "cinematic realism",
+    palette: "amber, obsidian, parchment",
+    motionStyle: "slow and deliberate",
+  },
+  directorCues: [],
+};
+
+const DEMO_SCENES = [
+  { id: "scene-1", index: 1, name: "The Descent", status: "complete" },
+  { id: "scene-2", index: 2, name: "Vault Opening", status: "active" },
+  { id: "scene-3", index: 3, name: "Glimmering Hall", status: "queued" },
+];
+
+export function getMockSessionSummary(id = "demo-session"): SessionSummary {
+  return {
+    id,
+    title: "Untitled World",
+    status: "active",
+    currentSceneId: "scene-2",
+    createdAt: new Date("2026-03-09T10:00:00.000Z").toISOString(),
+    updatedAt: new Date("2026-03-09T10:15:00.000Z").toISOString(),
+  };
+}
+
+export function getMockSessionDetail(id = "demo-session"): SessionDetail {
+  return {
+    ...getMockSessionSummary(id),
+    draftContent: DEMO_DRAFT,
+    lastPublishedOffset: DEMO_DRAFT.length - 146,
+    scenes: DEMO_SCENES,
+    worldState: DEMO_WORLD_STATE,
+  };
+}
+
+export function parseLiveState(value?: string): LiveState {
+  switch (value) {
+    case "starting":
+    case "live":
+    case "updating":
+    case "transitioning":
+    case "sleeping":
+    case "resuming":
+    case "replay":
+    case "error":
+      return value;
+    default:
+      return "idle";
+  }
+}
+
+export function getMockSessionScreen(options?: {
+  id?: string;
+  state?: string;
+  unpublished?: string;
+}) {
+  const liveState = parseLiveState(options?.state);
+  const replayMode = liveState === "replay";
+  const worldStarted = liveState !== "idle";
+  const hasUnpublishedText = options?.unpublished === "0" ? false : worldStarted;
+  const draft = worldStarted ? DEMO_DRAFT : "";
+
+  return {
+    sessionId: options?.id ?? "demo-session",
+    title: "Untitled World",
+    liveState,
+    draft,
+    lastPublishedOffset: worldStarted && hasUnpublishedText ? DEMO_DRAFT.length - 146 : DEMO_DRAFT.length,
+    hasWorldStarted: worldStarted,
+    hasUnpublishedText,
+    replayMode,
+    scenes: worldStarted ? DEMO_SCENES : [],
+    activeSceneId: worldStarted ? (replayMode ? "scene-1" : "scene-2") : null,
+    activeSceneName: replayMode ? "The Descent" : "Vault Opening",
+  };
+}
+
+export function getMockSessionList(): SessionSummary[] {
+  return [
+    getMockSessionSummary("demo-session"),
+    {
+      ...getMockSessionSummary("vault-echoes"),
+      title: "Vault Echoes",
+      currentSceneId: "scene-1",
+      updatedAt: new Date("2026-03-08T22:40:00.000Z").toISOString(),
+    },
+    {
+      ...getMockSessionSummary("mountain-choir"),
+      title: "Mountain Choir",
+      currentSceneId: "scene-3",
+      updatedAt: new Date("2026-03-07T18:24:00.000Z").toISOString(),
+    },
+  ];
+}
