@@ -14,6 +14,7 @@ export function WorldPanel({
   replayMediaKind,
   onBackToCurrent,
   onWake,
+  onRetry,
 }: {
   liveState: LiveState;
   sceneName?: string;
@@ -24,6 +25,7 @@ export function WorldPanel({
   replayMediaKind?: "image" | "video" | null;
   onBackToCurrent?: () => void;
   onWake?: () => void;
+  onRetry?: () => void;
 }) {
   const backgroundImage =
     liveState === "replay"
@@ -84,7 +86,13 @@ export function WorldPanel({
           World reacting…
         </div>
       ) : null}
-      <WorldOverlay liveState={liveState} sceneName={sceneName ?? "Vault Opening"} onBackToCurrent={onBackToCurrent} onWake={onWake} />
+      <WorldOverlay
+        liveState={liveState}
+        sceneName={sceneName ?? "Vault Opening"}
+        onBackToCurrent={onBackToCurrent}
+        onWake={onWake}
+        onRetry={onRetry}
+      />
     </section>
   );
 }

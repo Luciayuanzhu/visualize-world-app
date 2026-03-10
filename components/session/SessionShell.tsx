@@ -508,6 +508,24 @@ export function SessionShell({
     }
   }
 
+  async function handleRetry() {
+    if (isSubmitting) {
+      return;
+    }
+
+    if (currentSceneStarted) {
+      await handleWake();
+      return;
+    }
+
+    if (draft.trim().length >= 100) {
+      await handlePublish();
+      return;
+    }
+
+    setLiveState("idle");
+  }
+
   async function handleSessionTitleSave() {
     const trimmed = sessionTitle.trim();
     const nextTitle = trimmed || "Untitled World";
@@ -687,6 +705,9 @@ export function SessionShell({
       });
     } catch (error) {
       console.error(error);
+      void logClientEvent("error", "publish failed", {
+        message: error instanceof Error ? error.message : "unknown",
+      });
       setLiveState("error");
     } finally {
       setIsSubmitting(false);
@@ -742,6 +763,9 @@ export function SessionShell({
       });
     } catch (error) {
       console.error(error);
+      void logClientEvent("error", "start new scene failed", {
+        message: error instanceof Error ? error.message : "unknown",
+      });
       setLiveState("error");
     } finally {
       setIsSubmitting(false);
@@ -879,6 +903,9 @@ export function SessionShell({
       });
     } catch (error) {
       console.error(error);
+      void logClientEvent("error", "sleep failed", {
+        message: error instanceof Error ? error.message : "unknown",
+      });
       setLiveState("error");
     } finally {
       setIsSubmitting(false);
@@ -918,6 +945,9 @@ export function SessionShell({
       });
     } catch (error) {
       console.error(error);
+      void logClientEvent("error", "wake failed", {
+        message: error instanceof Error ? error.message : "unknown",
+      });
       setLiveState("error");
     }
   }
@@ -932,11 +962,12 @@ export function SessionShell({
           currentFrameUrl={currentFrameUrl}
           liveMediaStream={liveMediaStream}
           liveVideoRef={liveVideoRef}
-          replayMediaUrl={replayMediaUrl}
-          replayMediaKind={replayMediaKind}
-          onBackToCurrent={handleBackToCurrent}
-          onWake={handleWake}
-        />
+        replayMediaUrl={replayMediaUrl}
+        replayMediaKind={replayMediaKind}
+        onBackToCurrent={handleBackToCurrent}
+        onWake={handleWake}
+        onRetry={handleRetry}
+      />
         <TextPanel
           draft={draft}
           onDraftChange={handleDraftChange}

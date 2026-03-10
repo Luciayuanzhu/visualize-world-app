@@ -10,9 +10,10 @@ interface WorldOverlayProps {
   sceneName: string;
   onBackToCurrent?: () => void;
   onWake?: () => void;
+  onRetry?: () => void;
 }
 
-export function WorldOverlay({ liveState, sceneName, onBackToCurrent, onWake }: WorldOverlayProps) {
+export function WorldOverlay({ liveState, sceneName, onBackToCurrent, onWake, onRetry }: WorldOverlayProps) {
   switch (liveState) {
     case "starting":
       return <StartingOverlay />;
@@ -30,7 +31,13 @@ export function WorldOverlay({ liveState, sceneName, onBackToCurrent, onWake }: 
           <p className="text-5xl font-semibold" style={{ fontFamily: "Newsreader, serif" }}>
             Connection lost
           </p>
-          <button className="mt-6 rounded-full border px-6 py-2 text-sm font-semibold" style={{ borderColor: "rgba(255,255,255,0.18)" }}>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-6 rounded-full border px-6 py-2 text-sm font-semibold transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ borderColor: "rgba(255,255,255,0.18)" }}
+            disabled={!onRetry}
+          >
             Retry
           </button>
         </div>
