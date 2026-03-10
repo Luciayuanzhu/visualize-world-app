@@ -8,11 +8,13 @@ interface TextPanelProps {
   onPublish?: () => void;
   onStartNewScene?: () => void;
   onGoToPreviousScene?: () => void;
+  onGoToNextScene?: () => void;
   onSceneTitleChange?: (value: string) => void;
   onSceneTitleSave?: () => void;
   sceneTitle?: string;
   sceneTitlePlaceholder?: string;
   canGoToPreviousScene?: boolean;
+  canGoToNextScene?: boolean;
   hasWorldStarted?: boolean;
   hasUnpublishedText?: boolean;
   replayMode?: boolean;

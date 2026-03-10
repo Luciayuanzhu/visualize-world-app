@@ -39,6 +39,7 @@
 - [x] Make timeline scene thumbnails interactive for replay and back-to-current flow
 - [x] Split draft editing state per scene and add previous-scene switching
 - [x] Add optional scene title input with `Scene N` placeholder / auto-title fallback
+- [x] Add previous / next scene arrows and editable session title with autosave semantics
 
 ## Phase 4: Integrations
 

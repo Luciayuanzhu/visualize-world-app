@@ -39,7 +39,7 @@ interface SessionShellProps {
 
 export function SessionShell({
   sessionId,
-  title,
+  title: initialTitle,
   initialDraft,
   initialLiveState,
   lastPublishedOffset,
@@ -53,6 +53,7 @@ export function SessionShell({
   const [, startTransition] = useTransition();
   const initialSceneRecord = initialScenes.find((scene) => scene.id === activeSceneId) ?? null;
   const [liveState, setLiveState] = useState<LiveState>(initialLiveState);
+  const [sessionTitle, setSessionTitle] = useState(initialTitle);
   const [scenes, setScenes] = useState<SceneDraftState[]>(initialScenes);
   const [currentSceneId, setCurrentSceneId] = useState<string | null>(activeSceneId);
   const [currentSceneName, setCurrentSceneName] = useState(
@@ -77,6 +78,14 @@ export function SessionShell({
 
     const currentIndex = scenes.findIndex((scene) => scene.id === currentSceneId);
     return currentIndex > 0 ? scenes[currentIndex - 1] : null;
+  }, [scenes, currentSceneId]);
+  const nextScene = useMemo(() => {
+    if (!currentSceneId) {
+      return null;
+    }
+
+    const currentIndex = scenes.findIndex((scene) => scene.id === currentSceneId);
+    return currentIndex >= 0 && currentIndex < scenes.length - 1 ? scenes[currentIndex + 1] : null;
   }, [scenes, currentSceneId]);
   const replayScene = useMemo(
     () => scenes.find((scene) => scene.id === replaySceneId) ?? null,
@@ -107,6 +116,18 @@ export function SessionShell({
         "Content-Type": "application/json",
       },
       body: JSON.stringify(update),
+    });
+  }
+
+  async function handleSessionTitleSave() {
+    const trimmed = sessionTitle.trim();
+    const nextTitle = trimmed || "Untitled World";
+
+    setSessionTitle(nextTitle);
+
+    await patchSession({ title: nextTitle });
+    startTransition(() => {
+      router.refresh();
     });
   }
 
@@ -176,6 +197,7 @@ export function SessionShell({
       const nextActiveScene =
         detail.scenes.find((scene) => scene.id === detail.currentSceneId) ?? detail.scenes[detail.scenes.length - 1] ?? null;
 
+      setSessionTitle(detail.title);
       setScenes(detail.scenes);
       setCurrentSceneId(nextActiveScene?.id ?? null);
       setCurrentSceneName(nextActiveScene && isSystemSceneName(nextActiveScene.name) ? "" : nextActiveScene?.name ?? "");
@@ -284,6 +306,36 @@ export function SessionShell({
     }
   }
 
+  async function handleGoToNextScene() {
+    if (!nextScene || isSubmitting) {
+      return;
+    }
+
+    try {
+      await patchCurrentScene({
+        draftContent: draft,
+        name: currentSceneName.trim() || undefined,
+        publishedFromOffset: publishedOffset,
+      });
+      await patchSession({ currentSceneId: nextScene.id });
+
+      setCurrentSceneId(nextScene.id);
+      setCurrentSceneName(isSystemSceneName(nextScene.name) ? "" : nextScene.name);
+      setCurrentSceneStarted(nextScene.hasStarted);
+      setDraft(nextScene.draftContent);
+      setPublishedOffset(nextScene.publishedFromOffset);
+      setReplaySceneId(null);
+      setLiveState(nextScene.hasStarted ? "sleeping" : "idle");
+
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (error) {
+      console.error(error);
+      setLiveState("error");
+    }
+  }
+
   function handleSelectScene(sceneId: string) {
     if (sceneId === currentSceneId) {
       if (replayMode) {
@@ -317,7 +369,7 @@ export function SessionShell({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <TopBar title={title} />
+      <TopBar title={sessionTitle} editable onTitleChange={setSessionTitle} onTitleSave={handleSessionTitleSave} />
       <main className="flex min-h-[calc(100vh-48px-72px)]">
         <WorldPanel liveState={liveState} sceneName={selectedSceneName} onBackToCurrent={handleBackToCurrent} onWake={handleWake} />
         <TextPanel
@@ -326,11 +378,13 @@ export function SessionShell({
           onPublish={handlePublish}
           onStartNewScene={handleStartNewScene}
           onGoToPreviousScene={handleGoToPreviousScene}
+          onGoToNextScene={handleGoToNextScene}
           onSceneTitleChange={handleSceneTitleChange}
           onSceneTitleSave={handleSceneTitleSave}
           sceneTitle={currentSceneName}
           sceneTitlePlaceholder={currentScene ? `Scene ${currentScene.index}` : "Scene 1"}
           canGoToPreviousScene={Boolean(previousScene)}
+          canGoToNextScene={Boolean(nextScene)}
           hasWorldStarted={hasWorldStarted}
           hasUnpublishedText={hasUnpublishedText}
           replayMode={replayMode}

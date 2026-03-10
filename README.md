@@ -52,12 +52,16 @@ Core flow:
 - `Start New Scene` creates a new scene inside the same session and opens a fresh scene draft board.
 - Each scene owns its own draft content and publish cursor.
 - The left-arrow in the draft header switches back to the previous scene board.
+- The right-arrow in the draft header switches forward to the next scene board.
+- The first scene disables the left-arrow; the last scene disables the right-arrow.
 - Every timeline card keeps its scene number visible (`Scene 1`, `Scene 2`, etc.); scene titles are secondary labels.
 - Scene titles are optional user input. If the title input is left blank, the backend may auto-summarize a title when the scene is published.
+- The top app title is editable. If it stays as `Untitled World`, the backend may auto-summarize it on publish.
 - Timeline thumbnails are clickable; selecting a historical scene enters replay.
 - Replay is memory-only and does not branch.
 - `Back to Current` returns to the current scene's sleeping state.
 - Scene history is world memory, not a separate writing document.
+- Draft and title edits are autosaved. There is no separate `Save` button in MVP; `Evolve` is the explicit publish-to-world action.
 
 ## Current implementation status
 

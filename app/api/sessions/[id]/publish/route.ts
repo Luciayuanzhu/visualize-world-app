@@ -177,9 +177,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     });
 
+    const resolvedSessionTitle = shouldAutofillSessionTitle(session.title) ? summarizeSessionTitle(draft, session.title) : session.title;
+
     await tx.worldSession.update({
       where: { id },
       data: {
+        title: resolvedSessionTitle,
         currentSceneId: targetSceneId,
         status: "active",
       },
@@ -223,6 +226,27 @@ function summarizeSceneTitle(draft: string, fallback: string) {
   }
 
   const words = firstMeaningfulLine.replace(/[^\p{L}\p{N}\s'-]/gu, "").split(/\s+/).filter(Boolean).slice(0, 4);
+  const candidate = words.join(" ").trim();
+
+  return candidate.length > 0 ? candidate : fallback;
+}
+
+function shouldAutofillSessionTitle(title: string) {
+  return title.trim().toLowerCase() === "untitled world";
+}
+
+function summarizeSessionTitle(draft: string, fallback: string) {
+  const firstMeaningfulLine =
+    draft
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line.length > 0) ?? "";
+
+  if (!firstMeaningfulLine) {
+    return fallback;
+  }
+
+  const words = firstMeaningfulLine.replace(/[^\p{L}\p{N}\s'-]/gu, "").split(/\s+/).filter(Boolean).slice(0, 5);
   const candidate = words.join(" ").trim();
 
   return candidate.length > 0 ? candidate : fallback;

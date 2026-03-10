@@ -9,11 +9,13 @@ interface WritingViewProps {
   onPublish?: () => void;
   onStartNewScene?: () => void;
   onGoToPreviousScene?: () => void;
+  onGoToNextScene?: () => void;
   onSceneTitleChange?: (value: string) => void;
   onSceneTitleSave?: () => void;
   sceneTitle?: string;
   sceneTitlePlaceholder?: string;
   canGoToPreviousScene?: boolean;
+  canGoToNextScene?: boolean;
   hasWorldStarted?: boolean;
   hasUnpublishedText?: boolean;
   replayMode?: boolean;
@@ -27,11 +29,13 @@ export function WritingView({
   onPublish,
   onStartNewScene,
   onGoToPreviousScene,
+  onGoToNextScene,
   onSceneTitleChange,
   onSceneTitleSave,
   sceneTitle = "",
   sceneTitlePlaceholder = "Scene 1",
   canGoToPreviousScene = false,
+  canGoToNextScene = false,
   hasWorldStarted = false,
   hasUnpublishedText = false,
   replayMode = false,
@@ -73,6 +77,19 @@ export function WritingView({
               value={sceneTitle}
             />
           </div>
+          <button
+            className="mt-7 inline-flex h-9 w-9 items-center justify-center rounded-full border text-sm"
+            disabled={!canGoToNextScene || replayMode}
+            onClick={onGoToNextScene}
+            style={{
+              borderColor: "var(--border)",
+              color: !canGoToNextScene || replayMode ? "#796f61" : "var(--text-primary)",
+              background: "rgba(255,255,255,0.03)",
+            }}
+            type="button"
+          >
+            →
+          </button>
         </div>
         {replayMode ? (
           <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>
