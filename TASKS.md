@@ -40,6 +40,8 @@
 - [x] Split draft editing state per scene and add previous-scene switching
 - [x] Add optional scene title input with `Scene N` placeholder / auto-title fallback
 - [x] Add previous / next scene arrows and editable session title with autosave semantics
+- [x] Add session-list navigation from the in-session shell
+- [x] Add Gemini-powered Continue / Polish actions to the draft header
 
 ## Phase 4: Integrations
 

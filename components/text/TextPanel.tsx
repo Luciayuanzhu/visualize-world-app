@@ -9,12 +9,14 @@ interface TextPanelProps {
   onStartNewScene?: () => void;
   onGoToPreviousScene?: () => void;
   onGoToNextScene?: () => void;
+  onAssist?: (action: "continue" | "polish") => void;
   onSceneTitleChange?: (value: string) => void;
   onSceneTitleSave?: () => void;
   sceneTitle?: string;
   sceneTitlePlaceholder?: string;
   canGoToPreviousScene?: boolean;
   canGoToNextScene?: boolean;
+  assistLoadingAction?: "continue" | "polish" | null;
   hasWorldStarted?: boolean;
   hasUnpublishedText?: boolean;
   replayMode?: boolean;

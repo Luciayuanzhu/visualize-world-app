@@ -8,6 +8,7 @@ import { TextPanel } from "@/components/text/TextPanel";
 import { WorldPanel } from "@/components/world/WorldPanel";
 import { mergeWorldState } from "@/lib/world-state";
 import type {
+  AssistDraftResponse,
   CreateSceneResponse,
   PublishSessionResponse,
   UpdateSceneRequest,
@@ -65,6 +66,7 @@ export function SessionShell({
   const [worldState, setWorldState] = useState(initialWorldState);
   const [replaySceneId, setReplaySceneId] = useState<string | null>(initialLiveState === "replay" ? activeSceneId : null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [assistLoadingAction, setAssistLoadingAction] = useState<"continue" | "polish" | null>(null);
 
   const replayMode = liveState === "replay";
   const currentScene = useMemo(
@@ -129,6 +131,60 @@ export function SessionShell({
     startTransition(() => {
       router.refresh();
     });
+  }
+
+  async function handleAssist(action: "continue" | "polish") {
+    if (replayMode || isSubmitting || assistLoadingAction) {
+      return;
+    }
+
+    const trimmedDraft = draft.trim();
+    if (!trimmedDraft) {
+      return;
+    }
+
+    setAssistLoadingAction(action);
+
+    try {
+      const response = await fetch("/api/ai/assist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action,
+          draft,
+          sceneTitle: currentSceneName.trim() || undefined,
+          sessionTitle: sessionTitle.trim() || undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Assist failed with ${response.status}`);
+      }
+
+      const payload = (await response.json()) as AssistDraftResponse;
+      const nextDraft = action === "continue" ? `${draft.trimEnd()}\n\n${payload.content.trim()}` : payload.content;
+
+      setDraft(nextDraft);
+      if (currentSceneId) {
+        syncSceneState(currentSceneId, { draftContent: nextDraft });
+        await patchCurrentScene({
+          draftContent: nextDraft,
+          name: currentSceneName.trim() || undefined,
+          publishedFromOffset: publishedOffset,
+        });
+      }
+
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (error) {
+      console.error(error);
+      setLiveState("error");
+    } finally {
+      setAssistLoadingAction(null);
+    }
   }
 
   function syncSceneState(sceneId: string, update: Partial<SceneDraftState>) {
@@ -379,12 +435,14 @@ export function SessionShell({
           onStartNewScene={handleStartNewScene}
           onGoToPreviousScene={handleGoToPreviousScene}
           onGoToNextScene={handleGoToNextScene}
+          onAssist={handleAssist}
           onSceneTitleChange={handleSceneTitleChange}
           onSceneTitleSave={handleSceneTitleSave}
           sceneTitle={currentSceneName}
           sceneTitlePlaceholder={currentScene ? `Scene ${currentScene.index}` : "Scene 1"}
           canGoToPreviousScene={Boolean(previousScene)}
           canGoToNextScene={Boolean(nextScene)}
+          assistLoadingAction={assistLoadingAction}
           hasWorldStarted={hasWorldStarted}
           hasUnpublishedText={hasUnpublishedText}
           replayMode={replayMode}

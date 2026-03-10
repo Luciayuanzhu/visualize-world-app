@@ -10,12 +10,14 @@ interface WritingViewProps {
   onStartNewScene?: () => void;
   onGoToPreviousScene?: () => void;
   onGoToNextScene?: () => void;
+  onAssist?: (action: "continue" | "polish") => void;
   onSceneTitleChange?: (value: string) => void;
   onSceneTitleSave?: () => void;
   sceneTitle?: string;
   sceneTitlePlaceholder?: string;
   canGoToPreviousScene?: boolean;
   canGoToNextScene?: boolean;
+  assistLoadingAction?: "continue" | "polish" | null;
   hasWorldStarted?: boolean;
   hasUnpublishedText?: boolean;
   replayMode?: boolean;
@@ -30,12 +32,14 @@ export function WritingView({
   onStartNewScene,
   onGoToPreviousScene,
   onGoToNextScene,
+  onAssist,
   onSceneTitleChange,
   onSceneTitleSave,
   sceneTitle = "",
   sceneTitlePlaceholder = "Scene 1",
   canGoToPreviousScene = false,
   canGoToNextScene = false,
+  assistLoadingAction = null,
   hasWorldStarted = false,
   hasUnpublishedText = false,
   replayMode = false,
@@ -65,9 +69,41 @@ export function WritingView({
             ←
           </button>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: "var(--accent)" }}>
-              Draft
-            </p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: "var(--accent)" }}>
+                Draft
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-sm"
+                  disabled={replayMode || isSubmitting || assistLoadingAction !== null}
+                  onClick={() => onAssist?.("continue")}
+                  style={{
+                    borderColor: "var(--border)",
+                    color: replayMode || isSubmitting || assistLoadingAction !== null ? "#796f61" : "var(--text-primary)",
+                    background: "rgba(255,255,255,0.03)",
+                  }}
+                  title="AI continue"
+                  type="button"
+                >
+                  ✎
+                </button>
+                <button
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-sm"
+                  disabled={replayMode || isSubmitting || assistLoadingAction !== null}
+                  onClick={() => onAssist?.("polish")}
+                  style={{
+                    borderColor: "var(--border)",
+                    color: replayMode || isSubmitting || assistLoadingAction !== null ? "#796f61" : "var(--text-primary)",
+                    background: "rgba(255,255,255,0.03)",
+                  }}
+                  title="AI polish"
+                  type="button"
+                >
+                  ✦
+                </button>
+              </div>
+            </div>
             <input
               className="mt-4 w-full border-0 bg-transparent px-0 text-3xl font-semibold outline-none"
               onBlur={onSceneTitleSave}
@@ -94,6 +130,11 @@ export function WritingView({
         {replayMode ? (
           <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>
             Replaying {currentReplaySceneName}
+          </p>
+        ) : null}
+        {assistLoadingAction ? (
+          <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>
+            {assistLoadingAction === "continue" ? "AI continuing draft…" : "AI polishing draft…"}
           </p>
         ) : null}
         <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-secondary)" }}>

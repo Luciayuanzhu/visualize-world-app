@@ -80,6 +80,13 @@ export const evolveResponseSchema = z.object({
   worldStateUpdates: worldStateUpdatesSchema.optional(),
 });
 
+export const assistDraftSchema = z.object({
+  action: z.enum(["continue", "polish"]),
+  draft: z.string().min(1),
+  sceneTitle: z.string().trim().max(120).optional(),
+  sessionTitle: z.string().trim().max(120).optional(),
+});
+
 export const reconstructRequestSchema = z.object({
   sessionId: z.string().min(1),
   elapsedMs: z.number().int().nonnegative(),

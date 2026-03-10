@@ -36,6 +36,17 @@ export interface EvolveResponse {
   worldStateUpdates?: WorldStateUpdates;
 }
 
+export interface AssistDraftRequest {
+  action: "continue" | "polish";
+  draft: string;
+  sceneTitle?: string;
+  sessionTitle?: string;
+}
+
+export interface AssistDraftResponse {
+  content: string;
+}
+
 export interface CreateSessionRequest {
   title?: string;
 }

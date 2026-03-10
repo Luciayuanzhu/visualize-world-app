@@ -57,6 +57,8 @@ Core flow:
 - Every timeline card keeps its scene number visible (`Scene 1`, `Scene 2`, etc.); scene titles are secondary labels.
 - Scene titles are optional user input. If the title input is left blank, the backend may auto-summarize a title when the scene is published.
 - The top app title is editable. If it stays as `Untitled World`, the backend may auto-summarize it on publish.
+- The TopBar always includes a `My Worlds` link back to the session list.
+- The draft header includes Gemini-powered `Continue` and `Polish` actions.
 - Timeline thumbnails are clickable; selecting a historical scene enters replay.
 - Replay is memory-only and does not branch.
 - `Back to Current` returns to the current scene's sleeping state.
@@ -69,6 +71,7 @@ Core flow:
 - `Conjure World` / `Evolve` now use a real `/api/sessions/[id]/publish` route.
 - `Start New Scene` persists a new scene, switches to a fresh draft board, and resets that scene to pre-world state.
 - Scene titles are edited inline in the draft panel; blank titles fall back to the `Scene N` placeholder until publish.
+- Gemini `Continue` appends one new paragraph to the draft; `Polish` rewrites the current draft in place.
 - Odyssey playback and recording are still mock-scaffolded until the browser integration path is finalized.
 
 ## Demo routes
