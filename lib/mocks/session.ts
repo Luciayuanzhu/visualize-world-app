@@ -32,9 +32,45 @@ export const DEMO_WORLD_STATE: WorldState = {
 };
 
 const DEMO_SCENES = [
-  { id: "scene-1", index: 1, name: "Scene 1", status: "complete", hasStarted: true, draftContent: DEMO_DRAFT, publishedFromOffset: DEMO_DRAFT.length - 280 },
-  { id: "scene-2", index: 2, name: "Outer Hall", status: "active", hasStarted: true, draftContent: DEMO_DRAFT, publishedFromOffset: DEMO_DRAFT.length - 146 },
-  { id: "scene-3", index: 3, name: "Scene 3", status: "queued", hasStarted: false, draftContent: "", publishedFromOffset: 0 },
+  {
+    id: "scene-1",
+    index: 1,
+    name: "Scene 1",
+    status: "complete",
+    hasStarted: true,
+    draftContent: DEMO_DRAFT,
+    publishedFromOffset: DEMO_DRAFT.length - 280,
+    latestSegmentId: "segment-1",
+    latestLastFrameKey: "frames/demo/scene-1/sleep-1.jpg",
+    latestRecordingVideoKey: null,
+    resumePrompt: "A dim vault corridor waits in amber silence.",
+  },
+  {
+    id: "scene-2",
+    index: 2,
+    name: "Outer Hall",
+    status: "active",
+    hasStarted: true,
+    draftContent: DEMO_DRAFT,
+    publishedFromOffset: DEMO_DRAFT.length - 146,
+    latestSegmentId: "segment-2",
+    latestLastFrameKey: "frames/demo/scene-2/sleep-2.jpg",
+    latestRecordingVideoKey: null,
+    resumePrompt: "The outer hall glows with drifting dust and dormant machinery.",
+  },
+  {
+    id: "scene-3",
+    index: 3,
+    name: "Scene 3",
+    status: "queued",
+    hasStarted: false,
+    draftContent: "",
+    publishedFromOffset: 0,
+    latestSegmentId: null,
+    latestLastFrameKey: null,
+    latestRecordingVideoKey: null,
+    resumePrompt: null,
+  },
 ];
 
 export function getMockSessionSummary(id = "demo-session"): SessionSummary {

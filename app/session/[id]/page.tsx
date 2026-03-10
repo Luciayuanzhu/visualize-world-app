@@ -33,6 +33,10 @@ export default async function SessionPage({
           hasStarted: scene.hasStarted,
           draftContent: scene.draftContent,
           publishedFromOffset: scene.publishedFromOffset,
+          latestSegmentId: null,
+          latestLastFrameKey: null,
+          latestRecordingVideoKey: null,
+          resumePrompt: null,
         }))}
         activeSceneId={screen.activeSceneId}
         activeSceneName={screen.activeSceneName}
@@ -49,7 +53,11 @@ export default async function SessionPage({
       scenes: {
         orderBy: { index: "asc" },
         include: {
-          segments: { select: { id: true }, take: 1 },
+          segments: {
+            orderBy: { startedAt: "desc" },
+            select: { id: true, lastFrameKey: true, recordingVideoKey: true },
+            take: 1,
+          },
         },
       },
       revisions: { orderBy: { createdAt: "desc" }, take: 1 },
@@ -74,6 +82,10 @@ export default async function SessionPage({
           hasStarted: scene.hasStarted,
           draftContent: scene.draftContent,
           publishedFromOffset: scene.publishedFromOffset,
+          latestSegmentId: null,
+          latestLastFrameKey: null,
+          latestRecordingVideoKey: null,
+          resumePrompt: null,
         }))}
         activeSceneId={screen.activeSceneId}
         activeSceneName={screen.activeSceneName}
@@ -112,6 +124,10 @@ export default async function SessionPage({
         hasStarted: scene.hasStarted,
         draftContent: scene.draftContent,
         publishedFromOffset: scene.publishedFromOffset,
+        latestSegmentId: scene.latestSegmentId,
+        latestLastFrameKey: scene.latestLastFrameKey,
+        latestRecordingVideoKey: scene.latestRecordingVideoKey,
+        resumePrompt: scene.resumePrompt,
       }))}
       activeSceneId={activeScene?.id ?? null}
       activeSceneName={activeScene?.name ?? "Untitled Scene"}

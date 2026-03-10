@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { evolveWorld } from "@/lib/gemini";
+import { evolveWorld, generateSceneTitle, generateSessionTitle } from "@/lib/gemini";
 import { toSessionDetail } from "@/lib/serialization/session";
 import { publishSessionSchema } from "@/lib/validation/contracts";
 import { EMPTY_WORLD_STATE, mergeWorldState } from "@/lib/world-state";
@@ -79,10 +79,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         }
       : rawActionResult;
   const nextWorldState = mergeWorldState(worldState, actionResult.worldStateUpdates);
+  const nextSceneIndex = actionResult.action.type === "transition" ? (session.scenes.at(-1)?.index ?? 0) + 1 : currentScene?.index ?? 1;
+  const targetSceneFallbackName =
+    actionResult.action.type === "transition" ? actionResult.action.nextSceneName : currentScene?.name ?? `Scene ${nextSceneIndex}`;
+  const resolvedSceneTitle = shouldAutofillSceneTitle(targetSceneFallbackName)
+    ? await generateSceneTitle({
+        draft,
+        fallback: targetSceneFallbackName,
+        sceneIndex: nextSceneIndex,
+        sessionTitle: session.title,
+      })
+    : targetSceneFallbackName;
+  const resolvedSessionTitle = shouldAutofillSessionTitle(session.title)
+    ? await generateSessionTitle({
+        draft,
+        fallback: session.title,
+      })
+    : session.title;
 
   const updatedSession = await db.$transaction(async (tx) => {
     let targetSceneId = currentScene?.id ?? null;
-    let targetSceneName = currentScene?.name ?? "Scene 1";
+    let targetSceneName = resolvedSceneTitle;
 
     if (!targetSceneId) {
       const scene = await tx.scene.create({
@@ -116,7 +133,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         data: {
           sessionId: id,
           index: nextIndex,
-          name: actionResult.action.nextSceneName,
+          name: resolvedSceneTitle,
           draftOffsetStart: publishedFromOffset,
           draftContent: draft,
           publishedFromOffset: draft.length,
@@ -144,10 +161,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         },
       });
     }
-
-    const resolvedSceneTitle = shouldAutofillSceneTitle(targetSceneName)
-      ? summarizeSceneTitle(draft, targetSceneName)
-      : targetSceneName;
 
     await tx.scene.update({
       where: { id: targetSceneId },
@@ -177,8 +190,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     });
 
-    const resolvedSessionTitle = shouldAutofillSessionTitle(session.title) ? summarizeSessionTitle(draft, session.title) : session.title;
-
     await tx.worldSession.update({
       where: { id },
       data: {
@@ -194,7 +205,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         scenes: {
           orderBy: { index: "asc" },
           include: {
-            segments: { select: { id: true }, take: 1 },
+            segments: {
+              orderBy: { startedAt: "desc" },
+              select: { id: true, lastFrameKey: true, recordingVideoKey: true },
+              take: 1,
+            },
           },
         },
         revisions: { orderBy: { createdAt: "desc" }, take: 1 },
@@ -214,40 +229,6 @@ function shouldAutofillSceneTitle(name: string) {
   return /^Scene\s+\d+$/i.test(name.trim());
 }
 
-function summarizeSceneTitle(draft: string, fallback: string) {
-  const firstMeaningfulLine =
-    draft
-      .split("\n")
-      .map((line) => line.trim())
-      .find((line) => line.length > 0) ?? "";
-
-  if (!firstMeaningfulLine) {
-    return fallback;
-  }
-
-  const words = firstMeaningfulLine.replace(/[^\p{L}\p{N}\s'-]/gu, "").split(/\s+/).filter(Boolean).slice(0, 4);
-  const candidate = words.join(" ").trim();
-
-  return candidate.length > 0 ? candidate : fallback;
-}
-
 function shouldAutofillSessionTitle(title: string) {
   return title.trim().toLowerCase() === "untitled world";
-}
-
-function summarizeSessionTitle(draft: string, fallback: string) {
-  const firstMeaningfulLine =
-    draft
-      .split("\n")
-      .map((line) => line.trim())
-      .find((line) => line.length > 0) ?? "";
-
-  if (!firstMeaningfulLine) {
-    return fallback;
-  }
-
-  const words = firstMeaningfulLine.replace(/[^\p{L}\p{N}\s'-]/gu, "").split(/\s+/).filter(Boolean).slice(0, 5);
-  const candidate = words.join(" ").trim();
-
-  return candidate.length > 0 ? candidate : fallback;
 }

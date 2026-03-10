@@ -64,6 +64,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       hasStarted: false,
       draftContent: scene.draftContent,
       publishedFromOffset: scene.publishedFromOffset,
+      latestSegmentId: null,
+      latestLastFrameKey: null,
+      latestRecordingVideoKey: null,
+      resumePrompt: null,
     },
     { status: 201 },
   );

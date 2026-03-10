@@ -90,6 +90,10 @@ export const assistDraftSchema = z.object({
 export const reconstructRequestSchema = z.object({
   sessionId: z.string().min(1),
   elapsedMs: z.number().int().nonnegative(),
+  draft: z.string().optional(),
+  sessionTitle: z.string().trim().max(120).optional(),
+  sceneTitle: z.string().trim().max(120).optional(),
+  worldState: worldStateSchema.optional(),
 });
 
 export const reconstructResponseSchema = z.object({
@@ -117,4 +121,13 @@ export const frameUploadRequestSchema = z.object({
   sessionId: z.string().min(1),
   sceneId: z.string().min(1),
   extension: z.enum(["jpg", "jpeg", "png"]).default("jpg"),
+});
+
+export const frameReadRequestSchema = z.object({
+  frameKey: z.string().min(1),
+});
+
+export const recordingReadRequestSchema = z.object({
+  segmentId: z.string().min(1).optional(),
+  recordingVideoKey: z.string().min(1).optional(),
 });

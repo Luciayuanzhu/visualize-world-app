@@ -54,11 +54,12 @@ Core flow:
 - The left-arrow in the draft header switches back to the previous scene board.
 - The right-arrow in the draft header switches forward to the next scene board.
 - The first scene disables the left-arrow; the last scene disables the right-arrow.
+- Scene navigation arrows let the user move across existing scene boards without leaving the session page.
 - Every timeline card keeps its scene number visible (`Scene 1`, `Scene 2`, etc.); scene titles are secondary labels.
 - Scene titles are optional user input. If the title input is left blank, the backend may auto-summarize a title when the scene is published.
 - The top app title is editable. If it stays as `Untitled World`, the backend may auto-summarize it on publish.
 - The TopBar always includes a `My Worlds` link back to the session list.
-- The draft header includes Gemini-powered `Continue` and `Polish` actions.
+- The draft header includes Gemini-powered `Continue` and `Polish` actions with hover guidance.
 - Timeline thumbnails are clickable; selecting a historical scene enters replay.
 - Replay is memory-only and does not branch.
 - `Back to Current` returns to the current scene's sleeping state.
@@ -71,7 +72,17 @@ Core flow:
 - `Conjure World` / `Evolve` now use a real `/api/sessions/[id]/publish` route.
 - `Start New Scene` persists a new scene, switches to a fresh draft board, and resets that scene to pre-world state.
 - Scene titles are edited inline in the draft panel; blank titles fall back to the `Scene N` placeholder until publish.
-- Gemini `Continue` appends one new paragraph to the draft; `Polish` rewrites the current draft in place.
+- Session title is edited inline in the TopBar; `Untitled World` can be auto-filled on publish.
+- Gemini 2.5 Flash now powers:
+  - `Continue`
+  - `Polish`
+  - `Evolve` world compilation
+  - `Reconstruct` for wake
+  - scene title generation
+  - world title generation
+- Sleep persists a resumable prompt on the current scene and stores a frame-capture placeholder for replay/wake.
+- Wake creates a new segment in the current scene and restores the world from the latest frame metadata.
+- Replay resolves a recording URL when available and falls back to a frame-image route when not.
 - Odyssey playback and recording are still mock-scaffolded until the browser integration path is finalized.
 
 ## Demo routes

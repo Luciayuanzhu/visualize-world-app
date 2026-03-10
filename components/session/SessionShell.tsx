@@ -1,18 +1,23 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Timeline } from "@/components/layout/Timeline/Timeline";
 import { TopBar } from "@/components/layout/TopBar";
 import { TextPanel } from "@/components/text/TextPanel";
 import { WorldPanel } from "@/components/world/WorldPanel";
+import { useInactivitySleep } from "@/hooks/useInactivitySleep";
 import { mergeWorldState } from "@/lib/world-state";
 import type {
   AssistDraftResponse,
   CreateSceneResponse,
+  FrameReadUrlResponse,
   PublishSessionResponse,
+  RecordingReadUrlResponse,
+  SleepSessionResponse,
   UpdateSceneRequest,
   UpdateSessionRequest,
+  WakeSessionResponse,
 } from "@/types/api";
 import type { LiveState, WorldState } from "@/types/world";
 
@@ -23,6 +28,10 @@ interface SceneDraftState {
   hasStarted: boolean;
   draftContent: string;
   publishedFromOffset: number;
+  latestSegmentId: string | null;
+  latestLastFrameKey: string | null;
+  latestRecordingVideoKey: string | null;
+  resumePrompt: string | null;
 }
 
 interface SessionShellProps {
@@ -65,6 +74,9 @@ export function SessionShell({
   const [publishedOffset, setPublishedOffset] = useState(lastPublishedOffset);
   const [worldState, setWorldState] = useState(initialWorldState);
   const [replaySceneId, setReplaySceneId] = useState<string | null>(initialLiveState === "replay" ? activeSceneId : null);
+  const [currentFrameUrl, setCurrentFrameUrl] = useState<string | null>(null);
+  const [replayMediaUrl, setReplayMediaUrl] = useState<string | null>(null);
+  const [replayMediaKind, setReplayMediaKind] = useState<"image" | "video" | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [assistLoadingAction, setAssistLoadingAction] = useState<"continue" | "polish" | null>(null);
 
@@ -96,6 +108,102 @@ export function SessionShell({
   const selectedSceneName = replayMode ? replayScene?.name ?? currentSceneName : currentSceneName;
   const hasWorldStarted = currentSceneStarted;
   const hasUnpublishedText = hasWorldStarted ? draft.length > publishedOffset : draft.trim().length >= 100;
+
+  const loadFrameUrl = useCallback(async (frameKey: string | null | undefined) => {
+    if (!frameKey) {
+      return null;
+    }
+
+    const response = await fetch("/api/storage/frame-read-url", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ frameKey }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Frame read failed with ${response.status}`);
+    }
+
+    const payload = (await response.json()) as FrameReadUrlResponse;
+    return payload.readUrl;
+  }, []);
+
+  const loadReplayMedia = useCallback(
+    async (scene: SceneDraftState) => {
+      if (scene.latestRecordingVideoKey && scene.latestSegmentId) {
+        const response = await fetch("/api/storage/recording-read-url", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            segmentId: scene.latestSegmentId,
+            recordingVideoKey: scene.latestRecordingVideoKey,
+          }),
+        });
+
+        if (response.ok) {
+          const payload = (await response.json()) as RecordingReadUrlResponse;
+          if (payload.readUrl) {
+            return {
+              url: payload.readUrl,
+              kind: "video" as const,
+            };
+          }
+        }
+      }
+
+      const frameUrl = await loadFrameUrl(scene.latestLastFrameKey);
+      if (frameUrl) {
+        return {
+          url: frameUrl,
+          kind: "image" as const,
+        };
+      }
+
+      return {
+        url: null,
+        kind: null,
+      };
+    },
+    [loadFrameUrl],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const current = scenes.find((scene) => scene.id === currentSceneId) ?? null;
+    if (!current?.latestLastFrameKey) {
+      setCurrentFrameUrl(null);
+      return;
+    }
+
+    void loadFrameUrl(current.latestLastFrameKey)
+      .then((url) => {
+        if (!cancelled) {
+          setCurrentFrameUrl(url);
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [scenes, currentSceneId, loadFrameUrl]);
+
+  useInactivitySleep(
+    8 * 60_000,
+    () => {
+      if (currentSceneStarted && !replayMode && !isSubmitting && (liveState === "live" || liveState === "updating")) {
+        void handleSleep();
+      }
+    },
+    60_000,
+  );
 
   async function patchCurrentScene(update: UpdateSceneRequest) {
     if (!currentSceneId) {
@@ -131,6 +239,19 @@ export function SessionShell({
     startTransition(() => {
       router.refresh();
     });
+  }
+
+  function applySessionDetail(detail: PublishSessionResponse["session"] | SleepSessionResponse["session"] | WakeSessionResponse["session"]) {
+    const nextActiveScene =
+      detail.scenes.find((scene) => scene.id === detail.currentSceneId) ?? detail.scenes[detail.scenes.length - 1] ?? null;
+
+    setSessionTitle(detail.title);
+    setScenes(detail.scenes);
+    setCurrentSceneId(nextActiveScene?.id ?? null);
+    setCurrentSceneName(nextActiveScene && isSystemSceneName(nextActiveScene.name) ? "" : nextActiveScene?.name ?? "");
+    setCurrentSceneStarted(nextActiveScene?.hasStarted ?? false);
+    setDraft(nextActiveScene?.draftContent ?? "");
+    setPublishedOffset(nextActiveScene?.publishedFromOffset ?? 0);
   }
 
   async function handleAssist(action: "continue" | "polish") {
@@ -250,24 +371,19 @@ export function SessionShell({
 
       const payload = (await response.json()) as PublishSessionResponse;
       const detail = payload.session;
-      const nextActiveScene =
+      const publishedActiveScene =
         detail.scenes.find((scene) => scene.id === detail.currentSceneId) ?? detail.scenes[detail.scenes.length - 1] ?? null;
-
-      setSessionTitle(detail.title);
-      setScenes(detail.scenes);
-      setCurrentSceneId(nextActiveScene?.id ?? null);
-      setCurrentSceneName(nextActiveScene && isSystemSceneName(nextActiveScene.name) ? "" : nextActiveScene?.name ?? "");
-      setCurrentSceneStarted(nextActiveScene?.hasStarted ?? false);
-      setDraft(nextActiveScene?.draftContent ?? "");
-      setPublishedOffset(nextActiveScene?.publishedFromOffset ?? 0);
+      applySessionDetail(detail);
       setWorldState(detail.worldState ?? mergeWorldState(worldState, payload.worldStateUpdates));
       setReplaySceneId(null);
+      setReplayMediaUrl(null);
+      setReplayMediaKind(null);
 
       if (payload.action.type === "transition") {
         setLiveState("transitioning");
         window.setTimeout(() => setLiveState("live"), 1200);
       } else if (payload.action.type === "noop") {
-        setLiveState(nextActiveScene?.hasStarted ? "live" : "idle");
+        setLiveState(publishedActiveScene?.hasStarted ? "live" : "idle");
       } else {
         setLiveState("live");
       }
@@ -319,6 +435,8 @@ export function SessionShell({
       setDraft("");
       setPublishedOffset(0);
       setReplaySceneId(null);
+      setReplayMediaUrl(null);
+      setReplayMediaKind(null);
       setLiveState("idle");
 
       startTransition(() => {
@@ -351,6 +469,8 @@ export function SessionShell({
       setDraft(previousScene.draftContent);
       setPublishedOffset(previousScene.publishedFromOffset);
       setReplaySceneId(null);
+      setReplayMediaUrl(null);
+      setReplayMediaKind(null);
       setLiveState(previousScene.hasStarted ? "sleeping" : "idle");
 
       startTransition(() => {
@@ -381,6 +501,8 @@ export function SessionShell({
       setDraft(nextScene.draftContent);
       setPublishedOffset(nextScene.publishedFromOffset);
       setReplaySceneId(null);
+      setReplayMediaUrl(null);
+      setReplayMediaKind(null);
       setLiveState(nextScene.hasStarted ? "sleeping" : "idle");
 
       startTransition(() => {
@@ -392,7 +514,7 @@ export function SessionShell({
     }
   }
 
-  function handleSelectScene(sceneId: string) {
+  async function handleSelectScene(sceneId: string) {
     if (sceneId === currentSceneId) {
       if (replayMode) {
         handleBackToCurrent();
@@ -405,29 +527,107 @@ export function SessionShell({
       return;
     }
 
-    setReplaySceneId(scene.id);
-    setLiveState("replay");
+    try {
+      const media = await loadReplayMedia(scene);
+      setReplayMediaUrl(media.url);
+      setReplayMediaKind(media.kind);
+      setReplaySceneId(scene.id);
+      setLiveState("replay");
+    } catch (error) {
+      console.error(error);
+      setLiveState("error");
+    }
   }
 
   function handleBackToCurrent() {
     setReplaySceneId(null);
+    setReplayMediaUrl(null);
+    setReplayMediaKind(null);
     setLiveState(currentSceneStarted ? "sleeping" : "idle");
   }
 
-  function handleWake() {
+  async function handleSleep() {
+    if (!currentSceneStarted || isSubmitting || replayMode) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}/sleep`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Sleep failed with ${response.status}`);
+      }
+
+      const payload = (await response.json()) as SleepSessionResponse;
+      applySessionDetail(payload.session);
+      if (payload.frameKey) {
+        const nextFrameUrl = await loadFrameUrl(payload.frameKey);
+        setCurrentFrameUrl(nextFrameUrl);
+      }
+      setLiveState("sleeping");
+
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (error) {
+      console.error(error);
+      setLiveState("error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleWake() {
     if (!currentSceneStarted) {
       return;
     }
 
     setLiveState("resuming");
-    window.setTimeout(() => setLiveState("live"), 900);
+
+    try {
+      const response = await fetch(`/api/sessions/${sessionId}/wake`, {
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Wake failed with ${response.status}`);
+      }
+
+      const payload = (await response.json()) as WakeSessionResponse;
+      applySessionDetail(payload.session);
+      setWorldState(payload.session.worldState ?? worldState);
+      if (payload.frameKey) {
+        const nextFrameUrl = await loadFrameUrl(payload.frameKey);
+        setCurrentFrameUrl(nextFrameUrl);
+      }
+      setLiveState("live");
+
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (error) {
+      console.error(error);
+      setLiveState("error");
+    }
   }
 
   return (
     <div className="flex min-h-screen flex-col">
       <TopBar title={sessionTitle} editable onTitleChange={setSessionTitle} onTitleSave={handleSessionTitleSave} />
       <main className="flex min-h-[calc(100vh-48px-72px)]">
-        <WorldPanel liveState={liveState} sceneName={selectedSceneName} onBackToCurrent={handleBackToCurrent} onWake={handleWake} />
+        <WorldPanel
+          liveState={liveState}
+          sceneName={selectedSceneName}
+          currentFrameUrl={currentFrameUrl}
+          replayMediaUrl={replayMediaUrl}
+          replayMediaKind={replayMediaKind}
+          onBackToCurrent={handleBackToCurrent}
+          onWake={handleWake}
+        />
         <TextPanel
           draft={draft}
           onDraftChange={handleDraftChange}

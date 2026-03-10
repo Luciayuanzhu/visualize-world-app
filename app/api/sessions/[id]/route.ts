@@ -13,7 +13,11 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       scenes: {
         orderBy: { index: "asc" },
         include: {
-          segments: { select: { id: true }, take: 1 },
+          segments: {
+            orderBy: { startedAt: "desc" },
+            select: { id: true, lastFrameKey: true, recordingVideoKey: true },
+            take: 1,
+          },
         },
       },
       revisions: { orderBy: { createdAt: "desc" }, take: 1 },

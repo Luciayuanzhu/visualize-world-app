@@ -10,7 +10,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const response = reconstructResponseSchema.parse(await reconstructWorldState(parsed.data.sessionId));
+  const response = reconstructResponseSchema.parse(
+    await reconstructWorldState({
+      sessionId: parsed.data.sessionId,
+      draft: parsed.data.draft,
+      sceneTitle: parsed.data.sceneTitle,
+      sessionTitle: parsed.data.sessionTitle,
+      worldState: parsed.data.worldState,
+    }),
+  );
 
   return NextResponse.json(response);
 }

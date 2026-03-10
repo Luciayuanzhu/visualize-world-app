@@ -6,16 +6,33 @@ import type { LiveState } from "@/types/world";
 export function WorldPanel({
   liveState,
   sceneName,
+  currentFrameUrl,
+  replayMediaUrl,
+  replayMediaKind,
   onBackToCurrent,
   onWake,
 }: {
   liveState: LiveState;
   sceneName?: string;
+  currentFrameUrl?: string | null;
+  replayMediaUrl?: string | null;
+  replayMediaKind?: "image" | "video" | null;
   onBackToCurrent?: () => void;
   onWake?: () => void;
 }) {
+  const backgroundImage = liveState === "replay" ? (replayMediaKind === "image" ? replayMediaUrl : null) : currentFrameUrl;
+
   return (
     <section className="relative min-w-[480px] flex-[3] overflow-hidden border-r bg-black" style={{ borderColor: "var(--border)" }}>
+      {backgroundImage ? (
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-80"
+          style={{
+            backgroundImage: `url("${backgroundImage}")`,
+            filter: liveState === "sleeping" ? "blur(12px) brightness(0.62)" : liveState === "replay" ? "none" : "blur(4px) brightness(0.7)",
+          }}
+        />
+      ) : null}
       <div
         className="absolute inset-0"
         style={{
@@ -23,7 +40,7 @@ export function WorldPanel({
             "linear-gradient(180deg, rgba(255,234,182,0.13), rgba(12,10,7,0.76)), linear-gradient(90deg, rgba(66,49,27,0.75), rgba(255,232,180,0.06), rgba(66,49,27,0.75)), linear-gradient(160deg, #1f170d 0%, #5a4424 44%, #100d0a 100%)",
         }}
       />
-      <VideoStream />
+      <VideoStream src={liveState === "replay" && replayMediaKind === "video" ? replayMediaUrl : null} />
       <WorldStatusBar visible={liveState === "updating"} />
       {liveState === "live" ? (
         <div

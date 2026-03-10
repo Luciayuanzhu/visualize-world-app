@@ -74,34 +74,58 @@ export function WritingView({
                 Draft
               </p>
               <div className="flex items-center gap-2">
-                <button
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-sm"
-                  disabled={replayMode || isSubmitting || assistLoadingAction !== null}
-                  onClick={() => onAssist?.("continue")}
-                  style={{
-                    borderColor: "var(--border)",
-                    color: replayMode || isSubmitting || assistLoadingAction !== null ? "#796f61" : "var(--text-primary)",
-                    background: "rgba(255,255,255,0.03)",
-                  }}
-                  title="AI continue"
-                  type="button"
-                >
-                  ✎
-                </button>
-                <button
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-sm"
-                  disabled={replayMode || isSubmitting || assistLoadingAction !== null}
-                  onClick={() => onAssist?.("polish")}
-                  style={{
-                    borderColor: "var(--border)",
-                    color: replayMode || isSubmitting || assistLoadingAction !== null ? "#796f61" : "var(--text-primary)",
-                    background: "rgba(255,255,255,0.03)",
-                  }}
-                  title="AI polish"
-                  type="button"
-                >
-                  ✦
-                </button>
+                <div className="group relative">
+                  <button
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-sm"
+                    disabled={replayMode || isSubmitting || assistLoadingAction !== null}
+                    onClick={() => onAssist?.("continue")}
+                    style={{
+                      borderColor: "var(--border)",
+                      color: replayMode || isSubmitting || assistLoadingAction !== null ? "#796f61" : "var(--text-primary)",
+                      background: "rgba(255,255,255,0.03)",
+                    }}
+                    title="AI continue"
+                    type="button"
+                  >
+                    ✎
+                  </button>
+                  <div
+                    className="pointer-events-none absolute right-0 top-10 hidden w-44 rounded-lg border px-3 py-2 text-[11px] leading-5 group-hover:block"
+                    style={{
+                      borderColor: "var(--border)",
+                      background: "rgba(10,9,7,0.96)",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    Continue the current scene in the same voice.
+                  </div>
+                </div>
+                <div className="group relative">
+                  <button
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-sm"
+                    disabled={replayMode || isSubmitting || assistLoadingAction !== null}
+                    onClick={() => onAssist?.("polish")}
+                    style={{
+                      borderColor: "var(--border)",
+                      color: replayMode || isSubmitting || assistLoadingAction !== null ? "#796f61" : "var(--text-primary)",
+                      background: "rgba(255,255,255,0.03)",
+                    }}
+                    title="AI polish"
+                    type="button"
+                  >
+                    ✦
+                  </button>
+                  <div
+                    className="pointer-events-none absolute right-0 top-10 hidden w-48 rounded-lg border px-3 py-2 text-[11px] leading-5 group-hover:block"
+                    style={{
+                      borderColor: "var(--border)",
+                      background: "rgba(10,9,7,0.96)",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    Polish the draft for clarity, rhythm, and sensory detail.
+                  </div>
+                </div>
               </div>
             </div>
             <input

@@ -20,6 +20,10 @@ export interface SessionDetail extends SessionSummary {
     hasStarted: boolean;
     draftContent: string;
     publishedFromOffset: number;
+    latestSegmentId: string | null;
+    latestLastFrameKey: string | null;
+    latestRecordingVideoKey: string | null;
+    resumePrompt: string | null;
   }>;
   worldState: WorldState | null;
 }
@@ -72,6 +76,10 @@ export interface CreateSceneResponse {
   hasStarted: boolean;
   draftContent: string;
   publishedFromOffset: number;
+  latestSegmentId: string | null;
+  latestLastFrameKey: string | null;
+  latestRecordingVideoKey: string | null;
+  resumePrompt: string | null;
 }
 
 export interface UpdateSceneRequest {
@@ -93,11 +101,28 @@ export interface PublishSessionResponse {
 export interface ReconstructRequest {
   sessionId: string;
   elapsedMs: number;
+  draft?: string;
+  sessionTitle?: string;
+  sceneTitle?: string;
+  worldState?: WorldState;
 }
 
 export interface ReconstructResponse {
   startPrompt: string;
   worldState: WorldState;
+}
+
+export interface SleepSessionResponse {
+  session: SessionDetail;
+  frameKey: string | null;
+  resumePrompt: string | null;
+}
+
+export interface WakeSessionResponse {
+  session: SessionDetail;
+  segmentId: string | null;
+  startPrompt: string;
+  frameKey: string | null;
 }
 
 export interface LeaseResponse {
@@ -122,10 +147,14 @@ export interface EndSegmentAckRequest {
 }
 
 export interface RecordingReadUrlResponse {
-  readUrl: string;
+  readUrl: string | null;
 }
 
 export interface FrameUploadUrlResponse {
   uploadUrl: string;
   frameKey: string;
+}
+
+export interface FrameReadUrlResponse {
+  readUrl: string | null;
 }

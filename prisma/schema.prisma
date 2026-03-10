@@ -29,6 +29,7 @@ model Scene {
   sessionId       String              @db.Uuid
   index           Int
   name            String
+  resumePrompt    String?
   draftOffsetStart Int                @default(0)
   draftOffsetEnd  Int?
   draftContent    String              @default("")
