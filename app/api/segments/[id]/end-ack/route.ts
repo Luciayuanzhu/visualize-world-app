@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { db } from "@/lib/db";
 import { endAckSchema } from "@/lib/validation/contracts";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -9,6 +10,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
+
+  const segment = await db.streamSegment.findUnique({
+    where: { id },
+  });
+
+  if (!segment) {
+    return NextResponse.json({ error: "Segment not found" }, { status: 404 });
+  }
+
+  await db.streamSegment.update({
+    where: { id },
+    data: {
+      status: "ended",
+      endedAt: new Date(),
+      lastFrameKey: parsed.data.lastFrameKey,
+      recordingVideoKey: parsed.data.recordingVideoKey,
+      recordingThumbnailKey: parsed.data.recordingThumbnailKey,
+      recordingEventsKey: parsed.data.recordingEventsKey,
+    },
+  });
 
   return NextResponse.json({ ok: true, segmentId: id, ...parsed.data });
 }

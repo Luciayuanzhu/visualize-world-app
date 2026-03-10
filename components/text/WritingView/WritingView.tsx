@@ -9,6 +9,7 @@ interface WritingViewProps {
   hasWorldStarted?: boolean;
   hasUnpublishedText?: boolean;
   replayMode?: boolean;
+  currentReplaySceneName?: string;
 }
 
 export function WritingView({
@@ -17,10 +18,12 @@ export function WritingView({
   hasWorldStarted = false,
   hasUnpublishedText = false,
   replayMode = false,
+  currentReplaySceneName = "Scene 1",
 }: WritingViewProps) {
   const isBelowThreshold = !hasWorldStarted && draft.trim().length < 100;
   const disabled = replayMode || (hasWorldStarted ? !hasUnpublishedText : isBelowThreshold);
   const label = hasWorldStarted ? "Evolve" : "Conjure World";
+  const newSceneDisabled = replayMode || !hasWorldStarted;
 
   return (
     <section className="flex min-w-[360px] flex-[2] flex-col bg-[color:var(--bg-surface)]">
@@ -30,7 +33,7 @@ export function WritingView({
         </p>
         {replayMode ? (
           <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>
-            Replaying Scene 1
+            Replaying {currentReplaySceneName}
           </p>
         ) : null}
         <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-secondary)" }}>
@@ -45,7 +48,23 @@ export function WritingView({
         <DraftEditor value={draft} onChange={onDraftChange} readOnly={replayMode} />
       </div>
       <div className="border-t px-8 py-5" style={{ borderColor: "var(--border)" }}>
-        <EvolveButton label={label} disabled={disabled} />
+        <div className="flex gap-3">
+          <button
+            className="rounded-xl border px-4 py-3 text-sm font-semibold"
+            disabled={newSceneDisabled}
+            style={{
+              borderColor: "var(--border)",
+              background: newSceneDisabled ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.04)",
+              color: newSceneDisabled ? "#796f61" : "var(--text-primary)",
+            }}
+            type="button"
+          >
+            Start New Scene
+          </button>
+          <div className="flex-1">
+            <EvolveButton label={label} disabled={disabled} />
+          </div>
+        </div>
       </div>
     </section>
   );

@@ -8,6 +8,7 @@ Core flow:
 - Write draft
 - Conjure World
 - Evolve
+- Start New Scene
 - Sleep / Wake
 - Replay
 
@@ -41,8 +42,16 @@ Core flow:
 4. Add one PostgreSQL service
 5. Set `DATABASE_URL`, `DEV_USER_ID`, `ODYSSEY_API_KEY`, `GEMINI_API_KEY`
 6. Generate a public domain for the app service
-7. Run `railway run npm run prisma:deploy`
+7. Set the app service Pre-deploy Command to `npm run prisma:deploy`
 8. Open the deployed app and validate the demo routes
+
+## Interaction rules
+
+- `Evolve` updates the current scene only.
+- `Start New Scene` creates a new scene inside the same session.
+- Replay is memory-only and does not branch.
+- `Back to Current` returns to the current scene's sleeping state.
+- Scene history is world memory, not a separate writing document.
 
 ## Demo routes
 

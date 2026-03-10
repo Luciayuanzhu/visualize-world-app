@@ -42,6 +42,7 @@ export function SessionShell({
           hasWorldStarted={hasWorldStarted}
           hasUnpublishedText={hasUnpublishedText}
           replayMode={replayMode}
+          currentReplaySceneName={activeSceneName}
         />
       </main>
       <Timeline scenes={scenes} activeSceneId={activeSceneId} />

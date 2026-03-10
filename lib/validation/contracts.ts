@@ -47,6 +47,16 @@ export const createSessionSchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
 });
 
+export const updateSessionSchema = z.object({
+  title: z.string().trim().min(1).max(120).optional(),
+  status: z.enum(["active", "sleeping", "ended"]).optional(),
+});
+
+export const createSceneSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  draftOffsetStart: z.number().int().nonnegative().optional(),
+});
+
 export const evolveRequestSchema = z.object({
   sessionId: z.string().min(1),
   delta: z.string(),

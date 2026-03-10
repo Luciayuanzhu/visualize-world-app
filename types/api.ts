@@ -39,6 +39,16 @@ export interface CreateSessionRequest {
 
 export interface CreateSessionResponse extends SessionSummary {}
 
+export interface UpdateSessionRequest {
+  title?: string;
+  status?: "active" | "sleeping" | "ended";
+}
+
+export interface CreateSceneRequest {
+  name?: string;
+  draftOffsetStart?: number;
+}
+
 export interface ReconstructRequest {
   sessionId: string;
   elapsedMs: number;

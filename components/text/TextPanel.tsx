@@ -8,6 +8,7 @@ interface TextPanelProps {
   hasWorldStarted?: boolean;
   hasUnpublishedText?: boolean;
   replayMode?: boolean;
+  currentReplaySceneName?: string;
 }
 
 export function TextPanel(props: TextPanelProps) {

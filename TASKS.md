@@ -22,6 +22,7 @@
 - [x] Implement AI evolve route
 - [x] Implement AI reconstruct route
 - [x] Implement storage signed URL routes
+- [x] Replace mock session / scene / segment API handlers with Prisma-backed persistence
 
 ## Phase 3: Frontend MVP Shell
 
@@ -31,6 +32,7 @@
 - [x] Build sleeping / resuming / replay / error states
 - [x] Build draft editor + evolve button states
 - [x] Add mock session list and query-driven session state screens
+- [x] Align replay header and manual scene controls with the writing-only MVP rules
 
 ## Phase 4: Integrations
 
@@ -43,8 +45,9 @@
 ## Phase 5: Validation
 
 - [x] Run local typecheck / lint
-- [ ] Smoke-test core writing flow locally
+- [ ] Smoke-test core writing flow locally against Railway Postgres
 - [x] Document env vars and deployment steps
+- [ ] Configure Railway pre-deploy migration and verify public routes
 
 ## Notes
 
