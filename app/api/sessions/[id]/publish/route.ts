@@ -36,13 +36,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
-  const latestRevision = session.revisions[0];
   const latestSnapshot = session.snapshots[0];
   const draft = parsed.data.draft;
-  const publishedFromOffset = latestRevision?.publishedFromOffset ?? 0;
   const currentScene =
     session.scenes.find((scene) => scene.id === session.currentSceneId) ?? session.scenes[session.scenes.length - 1] ?? null;
   const currentSceneStarted = (currentScene?.segments.length ?? 0) > 0;
+  const publishedFromOffset = currentScene?.publishedFromOffset ?? 0;
   const worldState = latestSnapshot
     ? {
         canonFacts: Array.isArray(latestSnapshot.canonFacts) ? (latestSnapshot.canonFacts as string[]) : [],
@@ -63,16 +62,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     : EMPTY_WORLD_STATE;
 
   const delta = currentSceneStarted ? draft.slice(publishedFromOffset) : draft;
-  const actionResult = await evolveWorld({
+  const rawActionResult = await evolveWorld({
     sessionId: id,
     delta,
     context: draft.slice(Math.max(0, draft.length - 800)),
     worldState,
   });
+  const actionResult =
+    !currentSceneStarted && rawActionResult.action.type === "transition"
+      ? {
+          ...rawActionResult,
+          action: {
+            type: "interact" as const,
+            prompt: rawActionResult.action.startPrompt,
+          },
+        }
+      : rawActionResult;
   const nextWorldState = mergeWorldState(worldState, actionResult.worldStateUpdates);
 
   const updatedSession = await db.$transaction(async (tx) => {
     let targetSceneId = currentScene?.id ?? null;
+    let targetSceneName = currentScene?.name ?? "Scene 1";
 
     if (!targetSceneId) {
       const scene = await tx.scene.create({
@@ -81,10 +91,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           index: 1,
           name: "Scene 1",
           draftOffsetStart: 0,
+          draftContent: "",
+          publishedFromOffset: 0,
           status: "active",
         },
       });
       targetSceneId = scene.id;
+      targetSceneName = scene.name;
     }
 
     if (actionResult.action.type === "transition") {
@@ -105,10 +118,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           index: nextIndex,
           name: actionResult.action.nextSceneName,
           draftOffsetStart: publishedFromOffset,
+          draftContent: draft,
+          publishedFromOffset: draft.length,
           status: "active",
         },
       });
       targetSceneId = scene.id;
+      targetSceneName = scene.name;
 
       await tx.streamSegment.create({
         data: {
@@ -128,6 +144,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         },
       });
     }
+
+    const resolvedSceneTitle = shouldAutofillSceneTitle(targetSceneName)
+      ? summarizeSceneTitle(draft, targetSceneName)
+      : targetSceneName;
+
+    await tx.scene.update({
+      where: { id: targetSceneId },
+      data: {
+        name: resolvedSceneTitle,
+        draftContent: draft,
+        publishedFromOffset: draft.length,
+      },
+    });
 
     await tx.editorRevision.create({
       data: {
@@ -176,4 +205,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     action: actionResult.action,
     worldStateUpdates: actionResult.worldStateUpdates,
   });
+}
+
+function shouldAutofillSceneTitle(name: string) {
+  return /^Scene\s+\d+$/i.test(name.trim());
+}
+
+function summarizeSceneTitle(draft: string, fallback: string) {
+  const firstMeaningfulLine =
+    draft
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line.length > 0) ?? "";
+
+  if (!firstMeaningfulLine) {
+    return fallback;
+  }
+
+  const words = firstMeaningfulLine.replace(/[^\p{L}\p{N}\s'-]/gu, "").split(/\s+/).filter(Boolean).slice(0, 4);
+  const candidate = words.join(" ").trim();
+
+  return candidate.length > 0 ? candidate : fallback;
 }

@@ -49,7 +49,11 @@ Core flow:
 ## Interaction rules
 
 - `Evolve` updates the current scene only.
-- `Start New Scene` creates a new scene inside the same session.
+- `Start New Scene` creates a new scene inside the same session and opens a fresh scene draft board.
+- Each scene owns its own draft content and publish cursor.
+- The left-arrow in the draft header switches back to the previous scene board.
+- Every timeline card keeps its scene number visible (`Scene 1`, `Scene 2`, etc.); scene titles are secondary labels.
+- Scene titles are optional user input. If the title input is left blank, the backend may auto-summarize a title when the scene is published.
 - Timeline thumbnails are clickable; selecting a historical scene enters replay.
 - Replay is memory-only and does not branch.
 - `Back to Current` returns to the current scene's sleeping state.
@@ -59,7 +63,8 @@ Core flow:
 
 - Session list and session detail pages are backed by Prisma on Railway Postgres.
 - `Conjure World` / `Evolve` now use a real `/api/sessions/[id]/publish` route.
-- `Start New Scene` persists a new scene and resets the current scene to pre-world state.
+- `Start New Scene` persists a new scene, switches to a fresh draft board, and resets that scene to pre-world state.
+- Scene titles are edited inline in the draft panel; blank titles fall back to the `Scene N` placeholder until publish.
 - Odyssey playback and recording are still mock-scaffolded until the browser integration path is finalized.
 
 ## Demo routes

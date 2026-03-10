@@ -51,6 +51,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     data: {
       title: parsed.data.title,
       status: parsed.data.status,
+      currentSceneId: parsed.data.currentSceneId,
     },
   });
 

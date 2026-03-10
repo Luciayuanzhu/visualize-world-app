@@ -26,7 +26,14 @@ export default async function SessionPage({
         initialDraft={screen.draft}
         initialLiveState={screen.liveState}
         lastPublishedOffset={screen.lastPublishedOffset}
-        scenes={screen.scenes.map((scene) => ({ id: scene.id, name: scene.name, hasStarted: true }))}
+        scenes={screen.scenes.map((scene) => ({
+          id: scene.id,
+          index: scene.index,
+          name: scene.name,
+          hasStarted: scene.hasStarted,
+          draftContent: scene.draftContent,
+          publishedFromOffset: scene.publishedFromOffset,
+        }))}
         activeSceneId={screen.activeSceneId}
         activeSceneName={screen.activeSceneName}
         initialWorldState={DEMO_WORLD_STATE}
@@ -60,7 +67,14 @@ export default async function SessionPage({
         initialDraft={screen.draft}
         initialLiveState={screen.liveState}
         lastPublishedOffset={screen.lastPublishedOffset}
-        scenes={screen.scenes.map((scene) => ({ id: scene.id, name: scene.name, hasStarted: true }))}
+        scenes={screen.scenes.map((scene) => ({
+          id: scene.id,
+          index: scene.index,
+          name: scene.name,
+          hasStarted: scene.hasStarted,
+          draftContent: scene.draftContent,
+          publishedFromOffset: scene.publishedFromOffset,
+        }))}
         activeSceneId={screen.activeSceneId}
         activeSceneName={screen.activeSceneName}
         initialWorldState={DEMO_WORLD_STATE}
@@ -91,7 +105,14 @@ export default async function SessionPage({
       initialDraft={detail.draftContent}
       initialLiveState={derivedState}
       lastPublishedOffset={detail.lastPublishedOffset}
-      scenes={detail.scenes.map((scene) => ({ id: scene.id, name: scene.name, hasStarted: scene.hasStarted }))}
+      scenes={detail.scenes.map((scene) => ({
+        id: scene.id,
+        index: scene.index,
+        name: scene.name,
+        hasStarted: scene.hasStarted,
+        draftContent: scene.draftContent,
+        publishedFromOffset: scene.publishedFromOffset,
+      }))}
       activeSceneId={activeScene?.id ?? null}
       activeSceneName={activeScene?.name ?? "Untitled Scene"}
       initialWorldState={detail.worldState ?? DEMO_WORLD_STATE}

@@ -31,6 +31,8 @@ model Scene {
   name            String
   draftOffsetStart Int                @default(0)
   draftOffsetEnd  Int?
+  draftContent    String              @default("")
+  publishedFromOffset Int             @default(0)
   stateSnapshotId String?             @db.Uuid
   status          String              @default("active")
   createdAt       DateTime            @default(now())

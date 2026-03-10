@@ -10,9 +10,19 @@ import { mergeWorldState } from "@/lib/world-state";
 import type {
   CreateSceneResponse,
   PublishSessionResponse,
-  SessionDetail,
+  UpdateSceneRequest,
+  UpdateSessionRequest,
 } from "@/types/api";
 import type { LiveState, WorldState } from "@/types/world";
+
+interface SceneDraftState {
+  id: string;
+  index: number;
+  name: string;
+  hasStarted: boolean;
+  draftContent: string;
+  publishedFromOffset: number;
+}
 
 interface SessionShellProps {
   sessionId: string;
@@ -20,7 +30,7 @@ interface SessionShellProps {
   initialDraft: string;
   initialLiveState: LiveState;
   lastPublishedOffset: number;
-  scenes: Array<{ id: string; name: string; hasStarted: boolean }>;
+  scenes: SceneDraftState[];
   activeSceneId: string | null;
   activeSceneName: string;
   initialWorldState: WorldState;
@@ -41,26 +51,98 @@ export function SessionShell({
 }: SessionShellProps) {
   const router = useRouter();
   const [, startTransition] = useTransition();
-  const [draft, setDraft] = useState(initialDraft);
+  const initialSceneRecord = initialScenes.find((scene) => scene.id === activeSceneId) ?? null;
   const [liveState, setLiveState] = useState<LiveState>(initialLiveState);
-  const [scenes, setScenes] = useState(initialScenes);
+  const [scenes, setScenes] = useState<SceneDraftState[]>(initialScenes);
   const [currentSceneId, setCurrentSceneId] = useState<string | null>(activeSceneId);
-  const [currentSceneName, setCurrentSceneName] = useState(activeSceneName);
+  const [currentSceneName, setCurrentSceneName] = useState(
+    initialSceneRecord && isSystemSceneName(initialSceneRecord.name) ? "" : activeSceneName,
+  );
   const [currentSceneStarted, setCurrentSceneStarted] = useState(initialSceneStarted);
+  const [draft, setDraft] = useState(initialDraft);
   const [publishedOffset, setPublishedOffset] = useState(lastPublishedOffset);
   const [worldState, setWorldState] = useState(initialWorldState);
   const [replaySceneId, setReplaySceneId] = useState<string | null>(initialLiveState === "replay" ? activeSceneId : null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const replayMode = liveState === "replay";
-  const selectedSceneId = replayMode ? replaySceneId : currentSceneId;
-  const selectedScene = useMemo(
-    () => scenes.find((scene) => scene.id === selectedSceneId) ?? null,
-    [scenes, selectedSceneId],
+  const currentScene = useMemo(
+    () => scenes.find((scene) => scene.id === currentSceneId) ?? null,
+    [scenes, currentSceneId],
   );
-  const selectedSceneName = selectedScene?.name ?? currentSceneName;
+  const previousScene = useMemo(() => {
+    if (!currentSceneId) {
+      return null;
+    }
+
+    const currentIndex = scenes.findIndex((scene) => scene.id === currentSceneId);
+    return currentIndex > 0 ? scenes[currentIndex - 1] : null;
+  }, [scenes, currentSceneId]);
+  const replayScene = useMemo(
+    () => scenes.find((scene) => scene.id === replaySceneId) ?? null,
+    [scenes, replaySceneId],
+  );
+  const selectedSceneName = replayMode ? replayScene?.name ?? currentSceneName : currentSceneName;
   const hasWorldStarted = currentSceneStarted;
   const hasUnpublishedText = hasWorldStarted ? draft.length > publishedOffset : draft.trim().length >= 100;
+
+  async function patchCurrentScene(update: UpdateSceneRequest) {
+    if (!currentSceneId) {
+      return;
+    }
+
+    await fetch(`/api/scenes/${currentSceneId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(update),
+    });
+  }
+
+  async function patchSession(update: UpdateSessionRequest) {
+    await fetch(`/api/sessions/${sessionId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(update),
+    });
+  }
+
+  function syncSceneState(sceneId: string, update: Partial<SceneDraftState>) {
+    setScenes((current) => current.map((scene) => (scene.id === sceneId ? { ...scene, ...update } : scene)));
+  }
+
+  async function handleDraftChange(value: string) {
+    setDraft(value);
+    if (currentSceneId) {
+      syncSceneState(currentSceneId, { draftContent: value });
+    }
+  }
+
+  async function handleSceneTitleChange(value: string) {
+    setCurrentSceneName(value);
+    if (currentSceneId) {
+      syncSceneState(currentSceneId, { name: value });
+    }
+  }
+
+  async function handleSceneTitleSave() {
+    if (!currentSceneId) {
+      return;
+    }
+
+    const trimmed = currentSceneName.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    await patchCurrentScene({ name: trimmed });
+    startTransition(() => {
+      router.refresh();
+    });
+  }
 
   async function handlePublish() {
     if (isSubmitting || replayMode || !hasUnpublishedText) {
@@ -71,6 +153,12 @@ export function SessionShell({
     setLiveState(hasWorldStarted ? "updating" : "starting");
 
     try {
+      await patchCurrentScene({
+        draftContent: draft,
+        name: currentSceneName.trim() || undefined,
+        publishedFromOffset: publishedOffset,
+      });
+
       const response = await fetch(`/api/sessions/${sessionId}/publish`, {
         method: "POST",
         headers: {
@@ -88,11 +176,12 @@ export function SessionShell({
       const nextActiveScene =
         detail.scenes.find((scene) => scene.id === detail.currentSceneId) ?? detail.scenes[detail.scenes.length - 1] ?? null;
 
-      setScenes(detail.scenes.map((scene) => ({ id: scene.id, name: scene.name, hasStarted: scene.hasStarted })));
+      setScenes(detail.scenes);
       setCurrentSceneId(nextActiveScene?.id ?? null);
-      setCurrentSceneName(nextActiveScene?.name ?? "Untitled Scene");
+      setCurrentSceneName(nextActiveScene && isSystemSceneName(nextActiveScene.name) ? "" : nextActiveScene?.name ?? "");
       setCurrentSceneStarted(nextActiveScene?.hasStarted ?? false);
-      setPublishedOffset(detail.lastPublishedOffset);
+      setDraft(nextActiveScene?.draftContent ?? "");
+      setPublishedOffset(nextActiveScene?.publishedFromOffset ?? 0);
       setWorldState(detail.worldState ?? mergeWorldState(worldState, payload.worldStateUpdates));
       setReplaySceneId(null);
 
@@ -124,6 +213,12 @@ export function SessionShell({
     setIsSubmitting(true);
 
     try {
+      await patchCurrentScene({
+        draftContent: draft,
+        name: currentSceneName.trim() || undefined,
+        publishedFromOffset: publishedOffset,
+      });
+
       const response = await fetch(`/api/sessions/${sessionId}/scenes`, {
         method: "POST",
         headers: {
@@ -137,12 +232,14 @@ export function SessionShell({
       }
 
       const scene = (await response.json()) as CreateSceneResponse;
-      const nextScenes = [...scenes, { id: scene.id, name: scene.name, hasStarted: false }];
+      const nextScenes = [...scenes, scene];
 
       setScenes(nextScenes);
       setCurrentSceneId(scene.id);
-      setCurrentSceneName(scene.name);
+      setCurrentSceneName("");
       setCurrentSceneStarted(false);
+      setDraft("");
+      setPublishedOffset(0);
       setReplaySceneId(null);
       setLiveState("idle");
 
@@ -157,6 +254,36 @@ export function SessionShell({
     }
   }
 
+  async function handleGoToPreviousScene() {
+    if (!previousScene || isSubmitting) {
+      return;
+    }
+
+    try {
+      await patchCurrentScene({
+        draftContent: draft,
+        name: currentSceneName.trim() || undefined,
+        publishedFromOffset: publishedOffset,
+      });
+      await patchSession({ currentSceneId: previousScene.id });
+
+      setCurrentSceneId(previousScene.id);
+      setCurrentSceneName(isSystemSceneName(previousScene.name) ? "" : previousScene.name);
+      setCurrentSceneStarted(previousScene.hasStarted);
+      setDraft(previousScene.draftContent);
+      setPublishedOffset(previousScene.publishedFromOffset);
+      setReplaySceneId(null);
+      setLiveState(previousScene.hasStarted ? "sleeping" : "idle");
+
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (error) {
+      console.error(error);
+      setLiveState("error");
+    }
+  }
+
   function handleSelectScene(sceneId: string) {
     if (sceneId === currentSceneId) {
       if (replayMode) {
@@ -166,7 +293,6 @@ export function SessionShell({
     }
 
     const scene = scenes.find((item) => item.id === sceneId);
-
     if (!scene) {
       return;
     }
@@ -196,9 +322,15 @@ export function SessionShell({
         <WorldPanel liveState={liveState} sceneName={selectedSceneName} onBackToCurrent={handleBackToCurrent} onWake={handleWake} />
         <TextPanel
           draft={draft}
-          onDraftChange={setDraft}
+          onDraftChange={handleDraftChange}
           onPublish={handlePublish}
           onStartNewScene={handleStartNewScene}
+          onGoToPreviousScene={handleGoToPreviousScene}
+          onSceneTitleChange={handleSceneTitleChange}
+          onSceneTitleSave={handleSceneTitleSave}
+          sceneTitle={currentSceneName}
+          sceneTitlePlaceholder={currentScene ? `Scene ${currentScene.index}` : "Scene 1"}
+          canGoToPreviousScene={Boolean(previousScene)}
           hasWorldStarted={hasWorldStarted}
           hasUnpublishedText={hasUnpublishedText}
           replayMode={replayMode}
@@ -206,7 +338,11 @@ export function SessionShell({
           isSubmitting={isSubmitting}
         />
       </main>
-      <Timeline scenes={scenes} activeSceneId={selectedSceneId} onSelectScene={handleSelectScene} />
+      <Timeline scenes={scenes} activeSceneId={replayMode ? replaySceneId : currentSceneId} onSelectScene={handleSelectScene} />
     </div>
   );
+}
+
+function isSystemSceneName(name: string) {
+  return /^Scene\s+\d+$/i.test(name.trim());
 }

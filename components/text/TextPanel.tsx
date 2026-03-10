@@ -7,6 +7,12 @@ interface TextPanelProps {
   onDraftChange: (value: string) => void;
   onPublish?: () => void;
   onStartNewScene?: () => void;
+  onGoToPreviousScene?: () => void;
+  onSceneTitleChange?: (value: string) => void;
+  onSceneTitleSave?: () => void;
+  sceneTitle?: string;
+  sceneTitlePlaceholder?: string;
+  canGoToPreviousScene?: boolean;
   hasWorldStarted?: boolean;
   hasUnpublishedText?: boolean;
   replayMode?: boolean;

@@ -10,6 +10,8 @@ type SessionWithRelations = WorldSession & {
     status: string;
     draftOffsetStart: number;
     draftOffsetEnd: number | null;
+    draftContent: string;
+    publishedFromOffset: number;
     segments: Array<Pick<StreamSegment, "id">>;
   }>;
   revisions: EditorRevision[];
@@ -38,19 +40,22 @@ export function toSessionSummary(session: WorldSession): SessionSummary {
 }
 
 export function toSessionDetail(session: SessionWithRelations): SessionDetail {
-  const latestRevision = session.revisions[0];
   const latestSnapshot = session.snapshots[0];
+  const activeScene =
+    session.scenes.find((scene) => scene.id === session.currentSceneId) ?? session.scenes[session.scenes.length - 1] ?? null;
 
   return {
     ...toSessionSummary(session),
-    draftContent: latestRevision?.content ?? "",
-    lastPublishedOffset: latestRevision?.publishedFromOffset ?? 0,
+    draftContent: activeScene?.draftContent ?? "",
+    lastPublishedOffset: activeScene?.publishedFromOffset ?? 0,
     scenes: session.scenes.map((scene) => ({
       id: scene.id,
       index: scene.index,
       name: scene.name,
       status: scene.status,
       hasStarted: scene.segments.length > 0,
+      draftContent: scene.draftContent,
+      publishedFromOffset: scene.publishedFromOffset,
     })),
     worldState: latestSnapshot ? toWorldState(latestSnapshot) : EMPTY_WORLD_STATE,
   };

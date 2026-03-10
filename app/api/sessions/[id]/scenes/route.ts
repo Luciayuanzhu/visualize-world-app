@@ -42,6 +42,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       index: nextIndex,
       name: parsed.data.name ?? `Scene ${nextIndex}`,
       draftOffsetStart: parsed.data.draftOffsetStart ?? 0,
+      draftContent: "",
+      publishedFromOffset: 0,
       status: "active",
     },
   });
@@ -60,6 +62,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       index: scene.index,
       status: scene.status,
       hasStarted: false,
+      draftContent: scene.draftContent,
+      publishedFromOffset: scene.publishedFromOffset,
     },
     { status: 201 },
   );

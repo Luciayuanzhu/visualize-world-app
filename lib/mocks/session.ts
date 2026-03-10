@@ -32,9 +32,9 @@ export const DEMO_WORLD_STATE: WorldState = {
 };
 
 const DEMO_SCENES = [
-  { id: "scene-1", index: 1, name: "The Descent", status: "complete", hasStarted: true },
-  { id: "scene-2", index: 2, name: "Vault Opening", status: "active", hasStarted: true },
-  { id: "scene-3", index: 3, name: "Glimmering Hall", status: "queued", hasStarted: false },
+  { id: "scene-1", index: 1, name: "Scene 1", status: "complete", hasStarted: true, draftContent: DEMO_DRAFT, publishedFromOffset: DEMO_DRAFT.length - 280 },
+  { id: "scene-2", index: 2, name: "Outer Hall", status: "active", hasStarted: true, draftContent: DEMO_DRAFT, publishedFromOffset: DEMO_DRAFT.length - 146 },
+  { id: "scene-3", index: 3, name: "Scene 3", status: "queued", hasStarted: false, draftContent: "", publishedFromOffset: 0 },
 ];
 
 export function getMockSessionSummary(id = "demo-session"): SessionSummary {

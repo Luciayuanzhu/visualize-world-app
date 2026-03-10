@@ -1,0 +1,3 @@
+ALTER TABLE "Scene"
+ADD COLUMN "draftContent" TEXT NOT NULL DEFAULT '',
+ADD COLUMN "publishedFromOffset" INTEGER NOT NULL DEFAULT 0;

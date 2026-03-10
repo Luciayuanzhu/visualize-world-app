@@ -8,6 +8,12 @@ interface WritingViewProps {
   onDraftChange: (value: string) => void;
   onPublish?: () => void;
   onStartNewScene?: () => void;
+  onGoToPreviousScene?: () => void;
+  onSceneTitleChange?: (value: string) => void;
+  onSceneTitleSave?: () => void;
+  sceneTitle?: string;
+  sceneTitlePlaceholder?: string;
+  canGoToPreviousScene?: boolean;
   hasWorldStarted?: boolean;
   hasUnpublishedText?: boolean;
   replayMode?: boolean;
@@ -20,6 +26,12 @@ export function WritingView({
   onDraftChange,
   onPublish,
   onStartNewScene,
+  onGoToPreviousScene,
+  onSceneTitleChange,
+  onSceneTitleSave,
+  sceneTitle = "",
+  sceneTitlePlaceholder = "Scene 1",
+  canGoToPreviousScene = false,
   hasWorldStarted = false,
   hasUnpublishedText = false,
   replayMode = false,
@@ -34,9 +46,34 @@ export function WritingView({
   return (
     <section className="flex min-w-[360px] flex-[2] flex-col bg-[color:var(--bg-surface)]">
       <div className="px-8 pt-6">
-        <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: "var(--accent)" }}>
-          Draft
-        </p>
+        <div className="flex items-start gap-3">
+          <button
+            className="mt-7 inline-flex h-9 w-9 items-center justify-center rounded-full border text-sm"
+            disabled={!canGoToPreviousScene || replayMode}
+            onClick={onGoToPreviousScene}
+            style={{
+              borderColor: "var(--border)",
+              color: !canGoToPreviousScene || replayMode ? "#796f61" : "var(--text-primary)",
+              background: "rgba(255,255,255,0.03)",
+            }}
+            type="button"
+          >
+            ←
+          </button>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-[0.16em]" style={{ color: "var(--accent)" }}>
+              Draft
+            </p>
+            <input
+              className="mt-4 w-full border-0 bg-transparent px-0 text-3xl font-semibold outline-none"
+              onBlur={onSceneTitleSave}
+              onChange={(event) => onSceneTitleChange?.(event.target.value)}
+              placeholder={sceneTitlePlaceholder}
+              readOnly={replayMode}
+              value={sceneTitle}
+            />
+          </div>
+        </div>
         {replayMode ? (
           <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>
             Replaying {currentReplaySceneName}

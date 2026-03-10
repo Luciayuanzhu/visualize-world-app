@@ -50,11 +50,18 @@ export const createSessionSchema = z.object({
 export const updateSessionSchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
   status: z.enum(["active", "sleeping", "ended"]).optional(),
+  currentSceneId: z.string().uuid().nullable().optional(),
 });
 
 export const createSceneSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   draftOffsetStart: z.number().int().nonnegative().optional(),
+});
+
+export const updateSceneSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  draftContent: z.string().optional(),
+  publishedFromOffset: z.number().int().nonnegative().optional(),
 });
 
 export const publishSessionSchema = z.object({

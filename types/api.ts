@@ -18,6 +18,8 @@ export interface SessionDetail extends SessionSummary {
     name: string;
     status: string;
     hasStarted: boolean;
+    draftContent: string;
+    publishedFromOffset: number;
   }>;
   worldState: WorldState | null;
 }
@@ -43,6 +45,7 @@ export interface CreateSessionResponse extends SessionSummary {}
 export interface UpdateSessionRequest {
   title?: string;
   status?: "active" | "sleeping" | "ended";
+  currentSceneId?: string | null;
 }
 
 export interface CreateSceneRequest {
@@ -56,6 +59,14 @@ export interface CreateSceneResponse {
   name: string;
   status: string;
   hasStarted: boolean;
+  draftContent: string;
+  publishedFromOffset: number;
+}
+
+export interface UpdateSceneRequest {
+  name?: string;
+  draftContent?: string;
+  publishedFromOffset?: number;
 }
 
 export interface PublishSessionRequest {

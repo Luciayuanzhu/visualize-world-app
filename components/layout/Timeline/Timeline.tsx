@@ -2,7 +2,7 @@ import { NowMarker } from "@/components/layout/Timeline/NowMarker";
 import { SceneThumbnail } from "@/components/layout/Timeline/SceneThumbnail";
 
 interface TimelineProps {
-  scenes: Array<{ id: string; name: string }>;
+  scenes: Array<{ id: string; index: number; name: string }>;
   activeSceneId?: string | null;
   onSelectScene?: (sceneId: string) => void;
 }
@@ -18,7 +18,13 @@ export function Timeline({ scenes, activeSceneId, onSelectScene }: TimelineProps
         <>
           <div className="flex flex-1 gap-3 overflow-x-auto">
             {scenes.map((scene) => (
-              <SceneThumbnail key={scene.id} name={scene.name} active={scene.id === activeSceneId} onClick={() => onSelectScene?.(scene.id)} />
+              <SceneThumbnail
+                key={scene.id}
+                index={scene.index}
+                name={scene.name}
+                active={scene.id === activeSceneId}
+                onClick={() => onSelectScene?.(scene.id)}
+              />
             ))}
           </div>
           <NowMarker />

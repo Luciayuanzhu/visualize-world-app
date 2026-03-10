@@ -1,10 +1,17 @@
 interface SceneThumbnailProps {
+  index: number;
   name: string;
   active?: boolean;
   onClick?: () => void;
 }
 
-export function SceneThumbnail({ name, active = false, onClick }: SceneThumbnailProps) {
+function isSystemSceneName(name: string, index: number) {
+  return name.trim().toLowerCase() === `scene ${index}`.toLowerCase();
+}
+
+export function SceneThumbnail({ index, name, active = false, onClick }: SceneThumbnailProps) {
+  const showTitle = !isSystemSceneName(name, index);
+
   return (
     <button
       className="flex min-w-[120px] items-center gap-2 rounded-lg border p-2"
@@ -18,9 +25,9 @@ export function SceneThumbnail({ name, active = false, onClick }: SceneThumbnail
       <div className="h-7 w-10 rounded-md" style={{ background: "linear-gradient(160deg, rgba(219,166,31,0.24), rgba(255,255,255,0.04))" }} />
       <div className="min-w-0">
         <div className="truncate text-[9px] font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>
-          {active ? "Current" : "Scene"}
+          {`Scene ${index}`}
         </div>
-        <div className="truncate text-[11px] font-semibold">{name}</div>
+        <div className="truncate text-[11px] font-semibold">{showTitle ? name : active ? "Current" : "Untitled"}</div>
       </div>
     </button>
   );
