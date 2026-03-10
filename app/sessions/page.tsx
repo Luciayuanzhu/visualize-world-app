@@ -1,9 +1,19 @@
 import Link from "next/link";
 import { TopBar } from "@/components/layout/TopBar";
-import { getMockSessionList } from "@/lib/mocks/session";
+import { requireUser } from "@/lib/auth";
+import { db } from "@/lib/db";
 
-export default function SessionsPage() {
-  const sessions = getMockSessionList();
+export const dynamic = "force-dynamic";
+
+export default async function SessionsPage() {
+  const user = await requireUser();
+  const sessions = await db.worldSession.findMany({
+    where: { userId: user.uid },
+    include: {
+      scenes: true,
+    },
+    orderBy: { updatedAt: "desc" },
+  });
 
   return (
     <div className="min-h-screen">
@@ -19,7 +29,7 @@ export default function SessionsPage() {
           {sessions.map((session) => (
             <Link
               key={session.id}
-              href={`/session/${session.id}?state=live`}
+              href={`/session/${session.id}`}
               className="rounded-[20px] border p-4 transition-transform duration-150 hover:-translate-y-0.5"
               style={{ borderColor: "var(--border)", background: "rgba(23,18,13,0.9)" }}
             >
@@ -34,7 +44,7 @@ export default function SessionsPage() {
               <div className="mt-4">
                 <h2 className="text-lg font-bold">{session.title}</h2>
                 <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-                  3 scenes
+                  {session.scenes.length} scenes
                 </p>
               </div>
             </Link>

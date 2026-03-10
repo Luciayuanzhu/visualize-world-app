@@ -56,8 +56,9 @@ Core flow:
 ## Demo routes
 
 - `/` landing
-- `/sessions` mock session list
-- `/session/demo` pre-world writing
+- `/sessions` real session list
+- `/session/new` create-and-redirect route
+- `/session/demo` demo pre-world writing
 - `/session/demo?state=live` writing live
 - `/session/demo?state=live&unpublished=0` writing live with disabled evolve
 - `/session/demo?state=updating` updating
@@ -72,3 +73,4 @@ Core flow:
 The project skeleton was created manually because npm registry access was unavailable during bootstrapping.
 Current AI/Odyssey integrations are mock scaffolds until dependencies are installed and real secrets are wired.
 The official Odyssey npm package is temporarily excluded because its current peer range conflicts with React 19 / Next 15; real Odyssey integration will be wired separately once the browser integration path is finalized.
+The session list and session detail pages now prefer real Prisma-backed data; the `demo` session remains available as a visual fallback route.

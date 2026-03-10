@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 interface TopBarProps {
   title: string;
   showNewSession?: boolean;
@@ -13,12 +15,13 @@ export function TopBar({ title, showNewSession = false }: TopBarProps) {
       </div>
       <div className="flex items-center gap-3">
         {showNewSession ? (
-          <button
+          <Link
             className="rounded-lg border px-4 py-2 text-xs font-semibold"
+            href="/session/new"
             style={{ borderColor: "var(--border)", color: "var(--text-primary)" }}
           >
             + New Session
-          </button>
+          </Link>
         ) : null}
         <span
           className="inline-flex h-9 w-9 items-center justify-center rounded-full border text-xs font-bold"

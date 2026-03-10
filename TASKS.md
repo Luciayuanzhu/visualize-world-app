@@ -33,6 +33,7 @@
 - [x] Build draft editor + evolve button states
 - [x] Add mock session list and query-driven session state screens
 - [x] Align replay header and manual scene controls with the writing-only MVP rules
+- [x] Switch session list and session detail pages to prefer real Prisma-backed data
 
 ## Phase 4: Integrations
 

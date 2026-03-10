@@ -27,7 +27,7 @@ export default function LandingPage() {
             <div className="mt-10 flex justify-center gap-4">
               <Link
                 className="rounded-xl px-6 py-3 text-sm font-bold"
-                href="/session/demo"
+                href="/session/new"
                 style={{ background: "var(--accent)", color: "#1f180d" }}
               >
                 Start writing
