@@ -25,5 +25,9 @@ export async function GET(request: Request) {
     },
   });
 
-  return NextResponse.redirect(new URL(`/session/${session.id}`, request.url));
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  const origin = forwardedHost ? `${forwardedProto ?? "https"}://${forwardedHost}` : new URL(request.url).origin;
+
+  return NextResponse.redirect(new URL(`/session/${session.id}`, origin));
 }
