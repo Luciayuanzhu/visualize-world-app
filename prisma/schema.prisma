@@ -54,6 +54,7 @@ model StreamSegment {
   startedAt             DateTime     @default(now())
   endedAt               DateTime?
   lastFrameKey          String?
+  lastFrameDataUrl      String?
   recordingVideoKey     String?
   recordingThumbnailKey String?
   recordingEventsKey    String?
@@ -71,6 +72,7 @@ model FrameCapture {
   sceneId       String   @db.Uuid
   capturedAt    DateTime @default(now())
   frameKey      String
+  frameDataUrl  String?
   captureReason String
   segment       StreamSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
   scene         Scene         @relation(fields: [sceneId], references: [id], onDelete: Cascade)

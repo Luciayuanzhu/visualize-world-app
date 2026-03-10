@@ -115,6 +115,7 @@ export const endAckSchema = z.object({
   recordingThumbnailKey: z.string().optional(),
   recordingEventsKey: z.string().optional(),
   lastFrameKey: z.string().optional(),
+  lastFrameDataUrl: z.string().optional(),
 });
 
 export const frameUploadRequestSchema = z.object({
@@ -124,7 +125,8 @@ export const frameUploadRequestSchema = z.object({
 });
 
 export const frameReadRequestSchema = z.object({
-  frameKey: z.string().min(1),
+  frameKey: z.string().min(1).optional(),
+  segmentId: z.string().min(1).optional(),
 });
 
 export const recordingReadRequestSchema = z.object({

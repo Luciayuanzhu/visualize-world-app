@@ -155,6 +155,7 @@ export interface EndSegmentAckRequest {
   recordingThumbnailKey?: string;
   recordingEventsKey?: string;
   lastFrameKey?: string;
+  lastFrameDataUrl?: string;
 }
 
 export interface RecordingReadUrlResponse {

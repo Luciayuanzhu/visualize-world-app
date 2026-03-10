@@ -56,6 +56,9 @@
 - [x] Move publish/wake stream ownership to the browser with start-ack flow
 - [x] Prevent live streams from visually falling back into replay when they end unexpectedly
 - [x] Add browser-to-server client error logging for Odyssey/runtime issues
+- [x] Persist real captured last-frame data for sleep/wake/replay instead of placeholder frame art
+- [x] Keep the reusable live media stream attached across end/start cycles so wake/evolve can resume visually
+- [x] Allow the current scene to enter explicit replay mode after sleep
 - [ ] Add real recording/finalizer flow beyond frame fallback
 
 ## Phase 5: Validation

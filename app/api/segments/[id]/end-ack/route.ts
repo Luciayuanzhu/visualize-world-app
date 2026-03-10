@@ -28,6 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       status: "ended",
       endedAt: new Date(),
       lastFrameKey: parsed.data.lastFrameKey,
+      lastFrameDataUrl: parsed.data.lastFrameDataUrl,
       recordingVideoKey: parsed.data.recordingVideoKey,
       recordingThumbnailKey: parsed.data.recordingThumbnailKey,
       recordingEventsKey: parsed.data.recordingEventsKey,
@@ -40,6 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         sceneId: segment.sceneId,
         segmentId: id,
         frameKey: parsed.data.lastFrameKey,
+        frameDataUrl: parsed.data.lastFrameDataUrl,
         captureReason: "manual",
       },
     });
@@ -48,6 +50,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   logServer("info", "segment end ack stored", {
     segmentId: id,
     lastFrameKey: parsed.data.lastFrameKey ?? null,
+    hasFrameData: Boolean(parsed.data.lastFrameDataUrl),
     recordingVideoKey: parsed.data.recordingVideoKey ?? null,
   });
 

@@ -32,7 +32,7 @@ Core flow:
 - Runtime: Railway app service
 - Database: Railway PostgreSQL
 - Auth: `DEV_USER_ID` fallback only for MVP
-- Storage / replay finalization: still partial; replay currently falls back to frame placeholders when no recording asset exists
+- Storage / replay finalization: still partial; replay currently falls back to persisted last-frame captures when no recording asset exists
 
 ## Railway deploy flow
 
@@ -80,7 +80,7 @@ Core flow:
   - `Reconstruct` for wake
   - scene title generation
   - world title generation
-- Sleep persists a resumable prompt on the current scene and stores a frame-capture placeholder for replay/wake.
+- Sleep persists a resumable prompt on the current scene and stores the real captured last frame for replay/wake.
 - Wake creates a new `starting` segment in the current scene and the browser owns the actual Odyssey stream startup.
 - Replay resolves a recording URL when available and falls back to a frame-image route when not.
 - The browser now uses the official `@odysseyml/odyssey` package through the local wrapper for live `connect / startStream / interact / endStream`.

@@ -141,8 +141,8 @@ export function SessionShell({
     await odysseyClientRef.current?.interact(prompt);
   });
 
-  const loadFrameUrl = useCallback(async (frameKey: string | null | undefined) => {
-    if (!frameKey) {
+  const loadFrameUrl = useCallback(async (frameKey: string | null | undefined, segmentId?: string | null) => {
+    if (!frameKey && !segmentId) {
       return null;
     }
 
@@ -151,7 +151,7 @@ export function SessionShell({
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ frameKey }),
+      body: JSON.stringify({ frameKey: frameKey ?? undefined, segmentId: segmentId ?? undefined }),
     });
 
     if (!response.ok) {
@@ -187,7 +187,7 @@ export function SessionShell({
         }
       }
 
-      const frameUrl = await loadFrameUrl(scene.latestLastFrameKey);
+      const frameUrl = await loadFrameUrl(scene.latestLastFrameKey, scene.latestSegmentId);
       if (frameUrl) {
         return {
           url: frameUrl,
@@ -207,12 +207,12 @@ export function SessionShell({
     let cancelled = false;
 
     const current = scenes.find((scene) => scene.id === currentSceneId) ?? null;
-    if (!current?.latestLastFrameKey) {
+    if (!current?.latestLastFrameKey && !current?.latestSegmentId) {
       setCurrentFrameUrl(null);
       return;
     }
 
-    void loadFrameUrl(current.latestLastFrameKey)
+    void loadFrameUrl(current.latestLastFrameKey, current.latestSegmentId)
       .then((url) => {
         if (!cancelled) {
           setCurrentFrameUrl(url);
@@ -277,7 +277,12 @@ export function SessionShell({
           onConnected(stream) {
             if (!cancelled) {
               setLiveMediaStream(stream);
-              if (liveStateRef.current === "starting" || liveStateRef.current === "resuming" || liveStateRef.current === "sleeping") {
+              if (
+                liveStateRef.current === "starting" ||
+                liveStateRef.current === "resuming" ||
+                liveStateRef.current === "sleeping" ||
+                liveStateRef.current === "transitioning"
+              ) {
                 setLiveState("live");
               }
             }
@@ -295,7 +300,6 @@ export function SessionShell({
           },
           onStreamEnded() {
             if (!cancelled) {
-              setLiveMediaStream(null);
               void logClientEvent("info", "odyssey stream ended", {
                 replayMode: replayModeRef.current,
               });
@@ -389,7 +393,12 @@ export function SessionShell({
       odysseyClientRef.current = createOdysseyClient(odysseyConfig, {
         onConnected(stream) {
           setLiveMediaStream(stream);
-          if (liveStateRef.current === "starting" || liveStateRef.current === "resuming" || liveStateRef.current === "sleeping") {
+          if (
+            liveStateRef.current === "starting" ||
+            liveStateRef.current === "resuming" ||
+            liveStateRef.current === "sleeping" ||
+            liveStateRef.current === "transitioning"
+          ) {
             setLiveState("live");
           }
         },
@@ -403,7 +412,6 @@ export function SessionShell({
           }
         },
         onStreamEnded() {
-          setLiveMediaStream(null);
           void logClientEvent("info", "odyssey stream ended", {
             replayMode: replayModeRef.current,
           });
@@ -430,12 +438,14 @@ export function SessionShell({
     }
 
     let frameKey: string | null = null;
+    let frameDataUrl: string | null = null;
 
     try {
       const capture = await captureFrame(liveVideoRef.current);
       if (capture?.objectUrl) {
         setCurrentFrameUrl(capture.objectUrl);
       }
+      frameDataUrl = capture?.dataUrl ?? null;
       frameKey = await reserveFrameKey(sceneId);
     } catch (error) {
       console.error(error);
@@ -445,8 +455,6 @@ export function SessionShell({
     }
 
     await ensureOdysseyClient().endStream();
-    setLiveMediaStream(null);
-
     try {
       await fetch(`/api/segments/${segmentId}/end-ack`, {
         method: "POST",
@@ -455,6 +463,7 @@ export function SessionShell({
         },
         body: JSON.stringify({
           lastFrameKey: frameKey ?? undefined,
+          lastFrameDataUrl: frameDataUrl ?? undefined,
         }),
       });
     } catch (error) {
@@ -474,8 +483,9 @@ export function SessionShell({
     if (frameKey) {
       try {
         const readUrl = await loadFrameUrl(frameKey);
-        if (readUrl) {
-          const response = await fetch(readUrl);
+        const resolvedReadUrl = readUrl;
+        if (resolvedReadUrl) {
+          const response = await fetch(resolvedReadUrl);
           seedImage = await response.blob();
         }
       } catch (error) {
@@ -689,7 +699,7 @@ export function SessionShell({
           setLiveState("transitioning");
         }
         await startLaunchedStream(payload.launch.segmentId, payload.launch.prompt, payload.launch.frameKey);
-        setLiveState("live");
+        setLiveState(payload.action.type === "transition" ? "transitioning" : "starting");
       } else if (payload.action.type === "transition") {
         setLiveState("transitioning");
         window.setTimeout(() => setLiveState("live"), 1200);
@@ -837,20 +847,18 @@ export function SessionShell({
   }
 
   async function handleSelectScene(sceneId: string) {
-    if (sceneId === currentSceneId) {
-      if (replayMode) {
-        handleBackToCurrent();
-      }
-      return;
-    }
-
     const scene = scenes.find((item) => item.id === sceneId);
     if (!scene) {
       return;
     }
 
     try {
-      if (!replayMode && currentSceneStarted) {
+      if (sceneId === currentSceneId && replayMode) {
+        handleBackToCurrent();
+        return;
+      }
+
+      if (sceneId !== currentSceneId && !replayMode && currentSceneStarted) {
         await endActiveStream(currentSceneId, currentScene?.latestSegmentId ?? null);
       }
 
@@ -892,8 +900,8 @@ export function SessionShell({
 
       const payload = (await response.json()) as SleepSessionResponse;
       applySessionDetail(payload.session);
-      if (payload.frameKey) {
-        const nextFrameUrl = await loadFrameUrl(payload.frameKey);
+      if (payload.frameKey || currentScene?.latestSegmentId) {
+        const nextFrameUrl = await loadFrameUrl(payload.frameKey, currentScene?.latestSegmentId);
         setCurrentFrameUrl(nextFrameUrl);
       }
       setLiveState("sleeping");
@@ -931,14 +939,14 @@ export function SessionShell({
       const payload = (await response.json()) as WakeSessionResponse;
       applySessionDetail(payload.session);
       setWorldState(payload.session.worldState ?? worldState);
-      if (payload.frameKey) {
-        const nextFrameUrl = await loadFrameUrl(payload.frameKey);
+      if (payload.frameKey || payload.segmentId) {
+        const nextFrameUrl = await loadFrameUrl(payload.frameKey, payload.segmentId);
         setCurrentFrameUrl(nextFrameUrl);
       }
       if (payload.segmentId) {
         await startLaunchedStream(payload.segmentId, payload.startPrompt, payload.frameKey);
       }
-      setLiveState("live");
+      setLiveState("resuming");
 
       startTransition(() => {
         router.refresh();

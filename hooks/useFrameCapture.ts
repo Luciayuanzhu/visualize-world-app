@@ -38,8 +38,16 @@ export function useFrameCapture() {
     }
     objectUrlRef.current = URL.createObjectURL(blob);
 
+    const dataUrl = await new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(typeof reader.result === "string" ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+
     return {
       blob,
+      dataUrl,
       objectUrl: objectUrlRef.current,
     };
   }, []);
