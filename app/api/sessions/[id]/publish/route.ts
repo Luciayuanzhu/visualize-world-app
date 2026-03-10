@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -97,9 +96,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       })
     : session.title;
 
-  const updatedSession = await db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     let targetSceneId = currentScene?.id ?? null;
-    let targetSceneName = resolvedSceneTitle;
+    let launch: {
+      segmentId: string;
+      prompt: string;
+      frameKey: string | null;
+    } | null = null;
 
     if (!targetSceneId) {
       const scene = await tx.scene.create({
@@ -114,7 +117,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         },
       });
       targetSceneId = scene.id;
-      targetSceneName = scene.name;
     }
 
     if (actionResult.action.type === "transition") {
@@ -141,25 +143,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         },
       });
       targetSceneId = scene.id;
-      targetSceneName = scene.name;
-
-      await tx.streamSegment.create({
+      const segment = await tx.streamSegment.create({
         data: {
           sceneId: targetSceneId,
           sessionId: id,
-          status: "live",
-          odysseyStreamId: `mock-stream-${randomUUID()}`,
+          status: "starting",
         },
       });
+      launch = {
+        segmentId: segment.id,
+        prompt: actionResult.action.startPrompt,
+        frameKey: currentScene?.segments[0]?.lastFrameKey ?? null,
+      };
     } else if (!currentSceneStarted) {
-      await tx.streamSegment.create({
+      const prompt = actionResult.action.type === "interact" ? actionResult.action.prompt : draft.slice(0, 280);
+      const segment = await tx.streamSegment.create({
         data: {
           sceneId: targetSceneId,
           sessionId: id,
-          status: "live",
-          odysseyStreamId: `mock-stream-${randomUUID()}`,
+          status: "starting",
         },
       });
+      launch = {
+        segmentId: segment.id,
+        prompt,
+        frameKey: null,
+      };
     }
 
     await tx.scene.update({
@@ -199,7 +208,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     });
 
-    return tx.worldSession.findUniqueOrThrow({
+    const updatedSession = await tx.worldSession.findUniqueOrThrow({
       where: { id },
       include: {
         scenes: {
@@ -216,12 +225,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         snapshots: { orderBy: { createdAt: "desc" }, take: 1 },
       },
     });
+
+    return {
+      updatedSession,
+      launch,
+    };
   });
 
   return NextResponse.json({
-    session: toSessionDetail(updatedSession),
+    session: toSessionDetail(result.updatedSession),
     action: actionResult.action,
     worldStateUpdates: actionResult.worldStateUpdates,
+    launch: result.launch,
   });
 }
 

@@ -96,6 +96,11 @@ export interface PublishSessionResponse {
   session: SessionDetail;
   action: ActionPlan;
   worldStateUpdates?: WorldStateUpdates;
+  launch?: {
+    segmentId: string;
+    prompt: string;
+    frameKey: string | null;
+  } | null;
 }
 
 export interface ReconstructRequest {
@@ -123,6 +128,12 @@ export interface WakeSessionResponse {
   segmentId: string | null;
   startPrompt: string;
   frameKey: string | null;
+}
+
+export interface OdysseyClientConfigResponse {
+  enabled: boolean;
+  mode: "mock" | "odyssey";
+  apiKey?: string;
 }
 
 export interface LeaseResponse {

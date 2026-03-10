@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -77,8 +76,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
       data: {
         sceneId: currentScene.id,
         sessionId: id,
-        status: "live",
-        odysseyStreamId: `mock-stream-${randomUUID()}`,
+        status: "starting",
         lastFrameKey: frameKey,
       },
     });

@@ -1,17 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Timeline } from "@/components/layout/Timeline/Timeline";
 import { TopBar } from "@/components/layout/TopBar";
 import { TextPanel } from "@/components/text/TextPanel";
 import { WorldPanel } from "@/components/world/WorldPanel";
+import { useFrameCapture } from "@/hooks/useFrameCapture";
 import { useInactivitySleep } from "@/hooks/useInactivitySleep";
+import { useInteractQueue } from "@/hooks/useInteractQueue";
+import { createOdysseyClient, type OdysseyClientHandle } from "@/lib/odyssey-client";
 import { mergeWorldState } from "@/lib/world-state";
 import type {
   AssistDraftResponse,
   CreateSceneResponse,
   FrameReadUrlResponse,
+  OdysseyClientConfigResponse,
   PublishSessionResponse,
   RecordingReadUrlResponse,
   SleepSessionResponse,
@@ -77,8 +81,13 @@ export function SessionShell({
   const [currentFrameUrl, setCurrentFrameUrl] = useState<string | null>(null);
   const [replayMediaUrl, setReplayMediaUrl] = useState<string | null>(null);
   const [replayMediaKind, setReplayMediaKind] = useState<"image" | "video" | null>(null);
+  const [liveMediaStream, setLiveMediaStream] = useState<MediaStream | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [assistLoadingAction, setAssistLoadingAction] = useState<"continue" | "polish" | null>(null);
+  const [odysseyConfig, setOdysseyConfig] = useState<OdysseyClientConfigResponse>({ enabled: false, mode: "mock" });
+  const odysseyClientRef = useRef<OdysseyClientHandle | null>(null);
+  const liveVideoRef = useRef<HTMLVideoElement | null>(null);
+  const { captureFrame } = useFrameCapture();
 
   const replayMode = liveState === "replay";
   const currentScene = useMemo(
@@ -108,6 +117,14 @@ export function SessionShell({
   const selectedSceneName = replayMode ? replayScene?.name ?? currentSceneName : currentSceneName;
   const hasWorldStarted = currentSceneStarted;
   const hasUnpublishedText = hasWorldStarted ? draft.length > publishedOffset : draft.trim().length >= 100;
+
+  const interactQueue = useInteractQueue(async (prompt: string) => {
+    if (!prompt) {
+      return;
+    }
+
+    await odysseyClientRef.current?.interact(prompt);
+  });
 
   const loadFrameUrl = useCallback(async (frameKey: string | null | undefined) => {
     if (!frameKey) {
@@ -195,6 +212,58 @@ export function SessionShell({
     };
   }, [scenes, currentSceneId, loadFrameUrl]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    void fetch("/api/odyssey/client-config")
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Odyssey config failed with ${response.status}`);
+        }
+
+        return (await response.json()) as OdysseyClientConfigResponse;
+      })
+      .then((config) => {
+        if (cancelled) {
+          return;
+        }
+
+        setOdysseyConfig(config);
+        odysseyClientRef.current = createOdysseyClient(config, {
+          onConnected(stream) {
+            if (!cancelled) {
+              setLiveMediaStream(stream);
+            }
+          },
+          onDisconnected() {
+            if (!cancelled) {
+              setLiveMediaStream(null);
+            }
+          },
+          onStreamEnded() {
+            if (!cancelled) {
+              setLiveMediaStream(null);
+            }
+          },
+          onError(error) {
+            console.error(error);
+            if (!cancelled) {
+              setLiveState("error");
+            }
+          },
+        });
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+
+    return () => {
+      cancelled = true;
+      odysseyClientRef.current?.disconnect();
+      odysseyClientRef.current = null;
+    };
+  }, []);
+
   useInactivitySleep(
     8 * 60_000,
     () => {
@@ -227,6 +296,118 @@ export function SessionShell({
       },
       body: JSON.stringify(update),
     });
+  }
+
+  async function reserveFrameKey(sceneId: string) {
+    const response = await fetch("/api/storage/frame-upload-url", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sessionId,
+        sceneId,
+        extension: "jpg",
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Frame key reservation failed with ${response.status}`);
+    }
+
+    const payload = (await response.json()) as { frameKey: string };
+    return payload.frameKey;
+  }
+
+  function ensureOdysseyClient() {
+    if (!odysseyClientRef.current) {
+      odysseyClientRef.current = createOdysseyClient(odysseyConfig, {
+        onConnected(stream) {
+          setLiveMediaStream(stream);
+        },
+        onDisconnected() {
+          setLiveMediaStream(null);
+        },
+        onStreamEnded() {
+          setLiveMediaStream(null);
+        },
+        onError(error) {
+          console.error(error);
+          setLiveState("error");
+        },
+      });
+    }
+
+    return odysseyClientRef.current;
+  }
+
+  async function endActiveStream(sceneId: string | null, segmentId: string | null) {
+    if (!sceneId || !segmentId) {
+      return null;
+    }
+
+    let frameKey: string | null = null;
+
+    try {
+      const capture = await captureFrame(liveVideoRef.current);
+      if (capture?.objectUrl) {
+        setCurrentFrameUrl(capture.objectUrl);
+      }
+      frameKey = await reserveFrameKey(sceneId);
+    } catch (error) {
+      console.error(error);
+    }
+
+    await ensureOdysseyClient().endStream();
+    setLiveMediaStream(null);
+
+    try {
+      await fetch(`/api/segments/${segmentId}/end-ack`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lastFrameKey: frameKey ?? undefined,
+        }),
+      });
+    } catch (error) {
+      console.error(error);
+    }
+
+    return frameKey;
+  }
+
+  async function startLaunchedStream(segmentId: string, prompt: string, frameKey: string | null) {
+    let seedImage: Blob | null = null;
+
+    if (frameKey) {
+      try {
+        const readUrl = await loadFrameUrl(frameKey);
+        if (readUrl) {
+          const response = await fetch(readUrl);
+          seedImage = await response.blob();
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    const streamId = await ensureOdysseyClient().startStream(prompt, seedImage);
+
+    const ackResponse = await fetch(`/api/segments/${segmentId}/start-ack`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        odysseyStreamId: streamId,
+      }),
+    });
+
+    if (!ackResponse.ok) {
+      throw new Error(`Segment start ack failed with ${ackResponse.status}`);
+    }
   }
 
   async function handleSessionTitleSave() {
@@ -351,6 +532,9 @@ export function SessionShell({
     setLiveState(hasWorldStarted ? "updating" : "starting");
 
     try {
+      const previousSceneId = currentScene?.id ?? null;
+      const previousSegmentId = currentScene?.latestSegmentId ?? null;
+
       await patchCurrentScene({
         draftContent: draft,
         name: currentSceneName.trim() || undefined,
@@ -373,18 +557,30 @@ export function SessionShell({
       const detail = payload.session;
       const publishedActiveScene =
         detail.scenes.find((scene) => scene.id === detail.currentSceneId) ?? detail.scenes[detail.scenes.length - 1] ?? null;
+
+      if (payload.action.type === "transition") {
+        await endActiveStream(previousSceneId, previousSegmentId);
+      }
+
       applySessionDetail(detail);
       setWorldState(detail.worldState ?? mergeWorldState(worldState, payload.worldStateUpdates));
       setReplaySceneId(null);
       setReplayMediaUrl(null);
       setReplayMediaKind(null);
 
-      if (payload.action.type === "transition") {
+      if (payload.launch) {
+        if (payload.action.type === "transition") {
+          setLiveState("transitioning");
+        }
+        await startLaunchedStream(payload.launch.segmentId, payload.launch.prompt, payload.launch.frameKey);
+        setLiveState("live");
+      } else if (payload.action.type === "transition") {
         setLiveState("transitioning");
         window.setTimeout(() => setLiveState("live"), 1200);
       } else if (payload.action.type === "noop") {
         setLiveState(publishedActiveScene?.hasStarted ? "live" : "idle");
       } else {
+        interactQueue.enqueue(payload.action.prompt);
         setLiveState("live");
       }
 
@@ -407,6 +603,9 @@ export function SessionShell({
     setIsSubmitting(true);
 
     try {
+      const previousSceneId = currentScene?.id ?? null;
+      const previousSegmentId = currentScene?.latestSegmentId ?? null;
+
       await patchCurrentScene({
         draftContent: draft,
         name: currentSceneName.trim() || undefined,
@@ -426,6 +625,7 @@ export function SessionShell({
       }
 
       const scene = (await response.json()) as CreateSceneResponse;
+      await endActiveStream(previousSceneId, previousSegmentId);
       const nextScenes = [...scenes, scene];
 
       setScenes(nextScenes);
@@ -528,6 +728,10 @@ export function SessionShell({
     }
 
     try {
+      if (!replayMode && currentSceneStarted) {
+        await endActiveStream(currentSceneId, currentScene?.latestSegmentId ?? null);
+      }
+
       const media = await loadReplayMedia(scene);
       setReplayMediaUrl(media.url);
       setReplayMediaKind(media.kind);
@@ -554,6 +758,8 @@ export function SessionShell({
     setIsSubmitting(true);
 
     try {
+      await endActiveStream(currentSceneId, currentScene?.latestSegmentId ?? null);
+
       const response = await fetch(`/api/sessions/${sessionId}/sleep`, {
         method: "POST",
       });
@@ -604,6 +810,9 @@ export function SessionShell({
         const nextFrameUrl = await loadFrameUrl(payload.frameKey);
         setCurrentFrameUrl(nextFrameUrl);
       }
+      if (payload.segmentId) {
+        await startLaunchedStream(payload.segmentId, payload.startPrompt, payload.frameKey);
+      }
       setLiveState("live");
 
       startTransition(() => {
@@ -623,6 +832,8 @@ export function SessionShell({
           liveState={liveState}
           sceneName={selectedSceneName}
           currentFrameUrl={currentFrameUrl}
+          liveMediaStream={liveMediaStream}
+          liveVideoRef={liveVideoRef}
           replayMediaUrl={replayMediaUrl}
           replayMediaKind={replayMediaKind}
           onBackToCurrent={handleBackToCurrent}

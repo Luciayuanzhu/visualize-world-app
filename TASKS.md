@@ -45,14 +45,16 @@
 
 ## Phase 4: Integrations
 
-- [x] Add browser-side Odyssey client wrapper (mock scaffold)
+- [x] Add browser-side Odyssey client wrapper
 - [x] Add Gemini prompt client (mock scaffold)
 - [x] Add frame capture and inactivity hooks
 - [x] Add replay recording fetch flow
 - [x] Add persistent sleep/wake routes and client flow
 - [x] Move Gemini evolve/reconstruct to `gemini-2.5-flash`
 - [x] Add Gemini-generated scene/world title fallback
-- [ ] Revisit official Odyssey package integration once React 19 compatibility is confirmed
+- [x] Integrate the official Odyssey browser client package behind the local wrapper
+- [x] Move publish/wake stream ownership to the browser with start-ack flow
+- [ ] Add real recording/finalizer flow beyond frame fallback
 
 ## Phase 5: Validation
 

@@ -1,3 +1,4 @@
+import type { RefObject } from "react";
 import { VideoStream } from "@/components/world/VideoStream";
 import { WorldOverlay } from "@/components/world/overlays/WorldOverlay";
 import { WorldStatusBar } from "@/components/world/WorldStatusBar";
@@ -7,6 +8,8 @@ export function WorldPanel({
   liveState,
   sceneName,
   currentFrameUrl,
+  liveMediaStream,
+  liveVideoRef,
   replayMediaUrl,
   replayMediaKind,
   onBackToCurrent,
@@ -15,6 +18,8 @@ export function WorldPanel({
   liveState: LiveState;
   sceneName?: string;
   currentFrameUrl?: string | null;
+  liveMediaStream?: MediaStream | null;
+  liveVideoRef?: RefObject<HTMLVideoElement | null>;
   replayMediaUrl?: string | null;
   replayMediaKind?: "image" | "video" | null;
   onBackToCurrent?: () => void;
@@ -40,7 +45,11 @@ export function WorldPanel({
             "linear-gradient(180deg, rgba(255,234,182,0.13), rgba(12,10,7,0.76)), linear-gradient(90deg, rgba(66,49,27,0.75), rgba(255,232,180,0.06), rgba(66,49,27,0.75)), linear-gradient(160deg, #1f170d 0%, #5a4424 44%, #100d0a 100%)",
         }}
       />
-      <VideoStream src={liveState === "replay" && replayMediaKind === "video" ? replayMediaUrl : null} />
+      <VideoStream
+        ref={liveVideoRef}
+        mediaStream={liveState !== "replay" ? liveMediaStream : null}
+        src={liveState === "replay" && replayMediaKind === "video" ? replayMediaUrl : null}
+      />
       <WorldStatusBar visible={liveState === "updating"} />
       {liveState === "live" ? (
         <div

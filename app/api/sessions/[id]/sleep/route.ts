@@ -18,7 +18,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
         include: {
           segments: {
             orderBy: { startedAt: "desc" },
-            select: { id: true, lastFrameKey: true, recordingVideoKey: true },
+            select: { id: true, status: true, lastFrameKey: true, recordingVideoKey: true },
             take: 1,
           },
         },
@@ -70,7 +70,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
   });
 
   const updatedSession = await db.$transaction(async (tx) => {
-    if (latestSegment) {
+    if (latestSegment && latestSegment.status !== "ended") {
       await tx.streamSegment.update({
         where: { id: latestSegment.id },
         data: {

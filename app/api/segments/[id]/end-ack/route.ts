@@ -31,5 +31,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     },
   });
 
+  if (parsed.data.lastFrameKey) {
+    await db.frameCapture.create({
+      data: {
+        sceneId: segment.sceneId,
+        segmentId: id,
+        frameKey: parsed.data.lastFrameKey,
+        captureReason: "manual",
+      },
+    });
+  }
+
   return NextResponse.json({ ok: true, segmentId: id, ...parsed.data });
 }
