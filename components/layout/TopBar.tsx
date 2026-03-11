@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 interface TopBarProps {
   title: string;
@@ -6,9 +7,10 @@ interface TopBarProps {
   editable?: boolean;
   onTitleChange?: (value: string) => void;
   onTitleSave?: () => void;
+  rightSlot?: ReactNode;
 }
 
-export function TopBar({ title, showNewSession = false, editable = false, onTitleChange, onTitleSave }: TopBarProps) {
+export function TopBar({ title, showNewSession = false, editable = false, onTitleChange, onTitleSave, rightSlot }: TopBarProps) {
   return (
     <header className="flex h-12 items-center justify-between border-b px-6" style={{ borderColor: "var(--border)", background: "rgba(15,12,8,0.94)" }}>
       <div className="flex items-center gap-3">
@@ -29,6 +31,7 @@ export function TopBar({ title, showNewSession = false, editable = false, onTitl
         )}
       </div>
       <div className="flex items-center gap-3">
+        {rightSlot}
         {showNewSession ? (
           <Link
             className="cursor-pointer rounded-lg border px-4 py-2 text-xs font-semibold transition duration-150 hover:brightness-110"

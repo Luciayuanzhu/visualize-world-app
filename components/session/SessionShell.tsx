@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Timeline } from "@/components/layout/Timeline/Timeline";
+import { DeleteWorldDialog } from "@/components/session/DeleteWorldDialog";
 import { TopBar } from "@/components/layout/TopBar";
 import { TextPanel } from "@/components/text/TextPanel";
 import { WorldPanel } from "@/components/world/WorldPanel";
@@ -50,6 +51,7 @@ interface SessionShellProps {
   activeSceneName: string;
   initialWorldState: WorldState;
   initialSceneStarted: boolean;
+  canDelete?: boolean;
 }
 
 export function SessionShell({
@@ -63,8 +65,9 @@ export function SessionShell({
   activeSceneName,
   initialWorldState,
   initialSceneStarted,
+  canDelete = true,
 }: SessionShellProps) {
-  type PendingRequest = "publish" | "startScene" | "sleep" | "wake" | null;
+  type PendingRequest = "publish" | "startScene" | "sleep" | "wake" | "delete" | null;
 
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -89,6 +92,8 @@ export function SessionShell({
   const [pendingRequest, setPendingRequest] = useState<PendingRequest>(null);
   const [assistLoadingAction, setAssistLoadingAction] = useState<"continue" | "polish" | null>(null);
   const [movementStatus, setMovementStatus] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
   const [odysseyConfig, setOdysseyConfig] = useState<OdysseyClientConfigResponse>({ enabled: false, mode: "mock" });
   const odysseyClientRef = useRef<OdysseyClientHandle | null>(null);
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -1202,6 +1207,48 @@ export function SessionShell({
     }
   }
 
+  async function handleDeleteSession() {
+    if (!canDelete || isSubmitting) {
+      return;
+    }
+
+    setPendingRequest("delete");
+    setDeleteErrorMessage(null);
+
+    try {
+      await flushDraftAutosave();
+
+      if (!replayMode && currentSceneStarted && currentSceneId) {
+        await endActiveStream(currentSceneId, currentScene?.latestSegmentId ?? null);
+      } else {
+        odysseyClientRef.current?.disconnect();
+      }
+
+      const response = await fetch(`/api/sessions/${sessionId}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Delete failed with ${response.status}`);
+      }
+
+      setDeleteDialogOpen(false);
+      router.push("/sessions");
+      startTransition(() => {
+        router.refresh();
+      });
+    } catch (error) {
+      console.error(error);
+      const message = error instanceof Error ? error.message : "Delete failed.";
+      setDeleteErrorMessage(message);
+      void logClientEvent("error", "delete session failed", {
+        message,
+      });
+    } finally {
+      setPendingRequest(null);
+    }
+  }
+
   function handleDirectionalInteract(direction: DirectionControl) {
     if (isSubmitting || replayMode || liveState !== "live") {
       return;
@@ -1233,7 +1280,32 @@ export function SessionShell({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <TopBar title={sessionTitle} editable onTitleChange={setSessionTitle} onTitleSave={handleSessionTitleSave} />
+      <TopBar
+        title={sessionTitle}
+        editable
+        onTitleChange={setSessionTitle}
+        onTitleSave={handleSessionTitleSave}
+        rightSlot={
+          canDelete ? (
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteErrorMessage(null);
+                setDeleteDialogOpen(true);
+              }}
+              disabled={isSubmitting}
+              className="cursor-pointer rounded-lg border px-4 py-2 text-xs font-semibold transition duration-150 hover:brightness-110 disabled:cursor-not-allowed disabled:hover:brightness-100"
+              style={{
+                borderColor: "var(--border)",
+                color: isSubmitting ? "#796f61" : "var(--text-secondary)",
+                background: "rgba(255,255,255,0.03)",
+              }}
+            >
+              Delete World
+            </button>
+          ) : null
+        }
+      />
       <main className="flex min-h-[calc(100vh-48px-72px)]">
         <WorldPanel
           liveState={liveState}
@@ -1276,6 +1348,20 @@ export function SessionShell({
         />
       </main>
       <Timeline scenes={scenes} activeSceneId={replayMode ? replaySceneId : currentSceneId} onSelectScene={handleSelectScene} />
+      <DeleteWorldDialog
+        open={deleteDialogOpen}
+        deleting={pendingRequest === "delete"}
+        title={sessionTitle.trim() || "Untitled World"}
+        errorMessage={deleteErrorMessage}
+        onCancel={() => {
+          if (pendingRequest === "delete") {
+            return;
+          }
+          setDeleteErrorMessage(null);
+          setDeleteDialogOpen(false);
+        }}
+        onConfirm={handleDeleteSession}
+      />
     </div>
   );
 }

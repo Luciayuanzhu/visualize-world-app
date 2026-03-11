@@ -40,9 +40,10 @@ export default async function SessionPage({
         }))}
         activeSceneId={screen.activeSceneId}
         activeSceneName={screen.activeSceneName}
-        initialWorldState={DEMO_WORLD_STATE}
-        initialSceneStarted={screen.liveState !== "idle"}
-      />
+      initialWorldState={DEMO_WORLD_STATE}
+      initialSceneStarted={screen.liveState !== "idle"}
+      canDelete={false}
+    />
     );
   }
 
@@ -89,9 +90,10 @@ export default async function SessionPage({
         }))}
         activeSceneId={screen.activeSceneId}
         activeSceneName={screen.activeSceneName}
-        initialWorldState={DEMO_WORLD_STATE}
-        initialSceneStarted={screen.liveState !== "idle"}
-      />
+      initialWorldState={DEMO_WORLD_STATE}
+      initialSceneStarted={screen.liveState !== "idle"}
+      canDelete={false}
+    />
     );
   }
 
@@ -133,6 +135,7 @@ export default async function SessionPage({
       activeSceneName={activeScene?.name ?? "Untitled Scene"}
       initialWorldState={detail.worldState ?? DEMO_WORLD_STATE}
       initialSceneStarted={activeScene?.hasStarted ?? false}
+      canDelete
     />
   );
 }
