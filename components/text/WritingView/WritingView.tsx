@@ -157,24 +157,28 @@ export function WritingView({
             →
           </button>
         </div>
-        {replayMode ? (
-          <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>
-            Replaying {currentReplaySceneName}
-          </p>
-        ) : null}
-        {assistLoadingAction ? (
-          <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>
-            {assistLoadingAction === "continue" ? "AI continuing draft…" : "AI polishing draft…"}
-          </p>
-        ) : null}
-        <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-secondary)" }}>
-          {hasWorldStarted ? `Publish changes with ${label}.` : `Write at least ${PRE_WORLD_MIN_CHARACTERS} characters to enable Conjure World.`}
-        </p>
-        {!hasWorldStarted && remainingCharacters > 0 ? (
-          <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>
-            {remainingCharacters} more characters to conjure
-          </p>
-        ) : null}
+        <div className="mt-3 min-h-[28px]">
+          {replayMode ? (
+            <p className="text-xs font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>
+              Replaying {currentReplaySceneName}
+            </p>
+          ) : null}
+          {assistLoadingAction ? (
+            <p className="text-xs font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>
+              {assistLoadingAction === "continue" ? "AI continuing draft…" : "AI polishing draft…"}
+            </p>
+          ) : null}
+          {hasWorldStarted ? (
+            <p className="text-sm leading-6" style={{ color: "var(--text-secondary)" }}>
+              Publish changes with {label}.
+            </p>
+          ) : null}
+          {!hasWorldStarted && remainingCharacters > 0 ? (
+            <p className="pt-1 text-xs font-bold uppercase tracking-[0.14em]" style={{ color: "var(--text-muted)" }}>
+              {remainingCharacters} more characters to conjure
+            </p>
+          ) : null}
+        </div>
       </div>
       <div className="flex-1 overflow-auto px-8 py-6">
         <div className="mb-6 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>

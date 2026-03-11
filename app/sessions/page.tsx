@@ -10,11 +10,17 @@ export default async function SessionsPage() {
   const sessions = await db.worldSession.findMany({
     where: { userId: user.uid },
     include: {
+      revisions: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { content: true },
+      },
       scenes: {
         orderBy: { index: "asc" },
         include: {
           segments: {
             orderBy: { startedAt: "desc" },
+            where: { lastFrameDataUrl: { not: null } },
             select: { lastFrameDataUrl: true },
             take: 1,
           },
@@ -23,12 +29,16 @@ export default async function SessionsPage() {
     },
     orderBy: { updatedAt: "desc" },
   });
+  const visibleSessions = sessions.filter((session) => {
+    const latestDraft = session.revisions[0]?.content.trim() ?? "";
+    return session.scenes.length > 0 || latestDraft.length > 0 || session.title !== "Untitled World";
+  });
 
   return (
     <div className="min-h-screen">
       <TopBar title="Sessions" showNewSession />
       <main className="mx-auto max-w-6xl px-6 py-10">
-        {sessions.length === 0 ? (
+        {visibleSessions.length === 0 ? (
           <div
             className="mx-auto flex min-h-[70vh] max-w-3xl flex-col items-center justify-center rounded-[28px] border px-8 py-16 text-center"
             style={{
@@ -61,9 +71,9 @@ export default async function SessionsPage() {
               </p>
             </div>
             <div className="grid gap-6 md:grid-cols-3">
-              {sessions.map((session) => {
-                const currentScene = session.scenes.find((scene) => scene.id === session.currentSceneId) ?? session.scenes[session.scenes.length - 1] ?? null;
-                const previewUrl = currentScene?.segments[0]?.lastFrameDataUrl ?? null;
+              {visibleSessions.map((session) => {
+                const previewUrl =
+                  [...session.scenes].reverse().find((scene) => scene.segments[0]?.lastFrameDataUrl)?.segments[0]?.lastFrameDataUrl ?? null;
 
                 return (
                   <Link
