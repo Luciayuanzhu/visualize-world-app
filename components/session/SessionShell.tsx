@@ -10,7 +10,7 @@ import { useFrameCapture } from "@/hooks/useFrameCapture";
 import { useInactivitySleep } from "@/hooks/useInactivitySleep";
 import { useInteractQueue } from "@/hooks/useInteractQueue";
 import { createOdysseyClient, type OdysseyClientHandle } from "@/lib/odyssey-client";
-import { PRE_WORLD_MIN_CHARACTERS } from "@/lib/session-config";
+import { DIRECTION_INTERACT_PROMPTS, PRE_WORLD_MIN_CHARACTERS, type DirectionControl } from "@/lib/session-config";
 import { mergeWorldState } from "@/lib/world-state";
 import type {
   AssistDraftResponse,
@@ -88,9 +88,16 @@ export function SessionShell({
   const [odysseyConfig, setOdysseyConfig] = useState<OdysseyClientConfigResponse>({ enabled: false, mode: "mock" });
   const odysseyClientRef = useRef<OdysseyClientHandle | null>(null);
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
+  const autosaveTimeoutRef = useRef<number | null>(null);
   const liveStateRef = useRef<LiveState>(initialLiveState);
   const currentSceneIdRef = useRef<string | null>(activeSceneId);
   const currentSceneStartedRef = useRef(initialSceneStarted);
+  const lastPersistedSceneIdRef = useRef<string | null>(activeSceneId);
+  const lastPersistedDraftRef = useRef(initialDraft);
+  const lastPersistedSceneNameRef = useRef(
+    initialSceneRecord && isSystemSceneName(initialSceneRecord.name) ? "" : activeSceneName,
+  );
+  const lastPersistedPublishedOffsetRef = useRef(lastPublishedOffset);
   const replayModeRef = useRef(initialLiveState === "replay");
   const { captureFrame } = useFrameCapture();
 
@@ -131,6 +138,23 @@ export function SessionShell({
   useEffect(() => {
     replayModeRef.current = replayMode;
   }, [replayMode]);
+
+  const markScenePersisted = useCallback(
+    (sceneId: string | null, nextDraft: string, nextSceneName: string, nextPublishedOffset: number) => {
+      lastPersistedSceneIdRef.current = sceneId;
+      lastPersistedDraftRef.current = nextDraft;
+      lastPersistedSceneNameRef.current = nextSceneName;
+      lastPersistedPublishedOffsetRef.current = nextPublishedOffset;
+    },
+    [],
+  );
+
+  const clearAutosaveTimer = useCallback(() => {
+    if (autosaveTimeoutRef.current !== null) {
+      window.clearTimeout(autosaveTimeoutRef.current);
+      autosaveTimeoutRef.current = null;
+    }
+  }, []);
   const replayScene = useMemo(
     () => scenes.find((scene) => scene.id === replaySceneId) ?? null,
     [scenes, replaySceneId],
@@ -233,6 +257,16 @@ export function SessionShell({
     };
   }, [scenes, currentSceneId, loadFrameUrl]);
 
+  async function patchScene(sceneId: string, update: UpdateSceneRequest) {
+    await fetch(`/api/scenes/${sceneId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(update),
+    });
+  }
+
   const logClientEvent = useCallback(
     async (level: "info" | "warn" | "error", message: string, meta?: Record<string, unknown>) => {
       const payload = {
@@ -314,6 +348,14 @@ export function SessionShell({
               }
             }
           },
+          onStreamError(reason, message) {
+            if (!cancelled) {
+              void logClientEvent("error", "odyssey stream error", {
+                reason,
+                message,
+              });
+            }
+          },
           onError(error) {
             console.error(error);
             if (!cancelled) {
@@ -339,6 +381,52 @@ export function SessionShell({
     };
   }, [logClientEvent]);
 
+  useEffect(() => {
+    if (!currentSceneId || replayMode || isSubmitting) {
+      clearAutosaveTimer();
+      return;
+    }
+
+    const hasPendingChanges =
+      currentSceneId !== lastPersistedSceneIdRef.current ||
+      draft !== lastPersistedDraftRef.current ||
+      currentSceneName !== lastPersistedSceneNameRef.current ||
+      publishedOffset !== lastPersistedPublishedOffsetRef.current;
+
+    if (!hasPendingChanges) {
+      clearAutosaveTimer();
+      return;
+    }
+
+    clearAutosaveTimer();
+    autosaveTimeoutRef.current = window.setTimeout(() => {
+      void patchScene(currentSceneId, {
+        draftContent: draft,
+        name: currentSceneName.trim() || undefined,
+        publishedFromOffset: publishedOffset,
+      })
+        .then(() => {
+          markScenePersisted(currentSceneId, draft, currentSceneName, publishedOffset);
+        })
+        .catch((error) => {
+          console.error(error);
+          void logClientEvent("error", "draft autosave failed", {
+            message: error instanceof Error ? error.message : "unknown",
+          });
+        });
+    }, 800);
+
+    return () => {
+      clearAutosaveTimer();
+    };
+  }, [clearAutosaveTimer, currentSceneId, currentSceneName, draft, isSubmitting, logClientEvent, markScenePersisted, publishedOffset, replayMode]);
+
+  useEffect(() => {
+    return () => {
+      clearAutosaveTimer();
+    };
+  }, [clearAutosaveTimer]);
+
   useInactivitySleep(
     null,
     () => {
@@ -354,13 +442,32 @@ export function SessionShell({
       return;
     }
 
-    await fetch(`/api/scenes/${currentSceneId}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(update),
+    await patchScene(currentSceneId, update);
+  }
+
+  async function flushDraftAutosave() {
+    clearAutosaveTimer();
+
+    if (!currentSceneId || replayMode) {
+      return;
+    }
+
+    const hasPendingChanges =
+      currentSceneId !== lastPersistedSceneIdRef.current ||
+      draft !== lastPersistedDraftRef.current ||
+      currentSceneName !== lastPersistedSceneNameRef.current ||
+      publishedOffset !== lastPersistedPublishedOffsetRef.current;
+
+    if (!hasPendingChanges) {
+      return;
+    }
+
+    await patchScene(currentSceneId, {
+      draftContent: draft,
+      name: currentSceneName.trim() || undefined,
+      publishedFromOffset: publishedOffset,
     });
+    markScenePersisted(currentSceneId, draft, currentSceneName, publishedOffset);
   }
 
   async function patchSession(update: UpdateSessionRequest) {
@@ -424,6 +531,12 @@ export function SessionShell({
           if (!replayModeRef.current && currentSceneStartedRef.current) {
             setLiveState("sleeping");
           }
+        },
+        onStreamError(reason, message) {
+          void logClientEvent("error", "odyssey stream error", {
+            reason,
+            message,
+          });
         },
         onError(error) {
           console.error(error);
@@ -522,6 +635,11 @@ export function SessionShell({
       });
       throw new Error(`Segment start ack failed with ${ackResponse.status}`);
     }
+
+    void logClientEvent("info", "odyssey stream started", {
+      segmentId,
+      odysseyStreamId: streamId,
+    });
   }
 
   async function handleRetry() {
@@ -560,6 +678,12 @@ export function SessionShell({
 
     currentSceneIdRef.current = nextActiveScene?.id ?? null;
     currentSceneStartedRef.current = nextActiveScene?.hasStarted ?? false;
+    markScenePersisted(
+      nextActiveScene?.id ?? null,
+      nextActiveScene?.draftContent ?? "",
+      nextActiveScene && isSystemSceneName(nextActiveScene.name) ? "" : nextActiveScene?.name ?? "",
+      nextActiveScene?.publishedFromOffset ?? 0,
+    );
     setSessionTitle(detail.title);
     setScenes(detail.scenes);
     setCurrentSceneId(nextActiveScene?.id ?? null);
@@ -610,6 +734,7 @@ export function SessionShell({
           name: currentSceneName.trim() || undefined,
           publishedFromOffset: publishedOffset,
         });
+        markScenePersisted(currentSceneId, nextDraft, currentSceneName, publishedOffset);
       }
 
       startTransition(() => {
@@ -652,6 +777,7 @@ export function SessionShell({
     }
 
     await patchCurrentScene({ name: trimmed });
+    markScenePersisted(currentSceneId, draft, trimmed, publishedOffset);
     startTransition(() => {
       router.refresh();
     });
@@ -669,11 +795,15 @@ export function SessionShell({
       const previousSceneId = currentScene?.id ?? null;
       const previousSegmentId = currentScene?.latestSegmentId ?? null;
 
+      await flushDraftAutosave();
       await patchCurrentScene({
         draftContent: draft,
         name: currentSceneName.trim() || undefined,
         publishedFromOffset: publishedOffset,
       });
+      if (currentSceneId) {
+        markScenePersisted(currentSceneId, draft, currentSceneName, publishedOffset);
+      }
 
       const response = await fetch(`/api/sessions/${sessionId}/publish`, {
         method: "POST",
@@ -707,6 +837,7 @@ export function SessionShell({
           setLiveState("transitioning");
         }
         await startLaunchedStream(payload.launch.segmentId, payload.launch.prompt, payload.launch.frameKey);
+        setLiveState("live");
       } else if (payload.action.type === "transition") {
         setLiveState("transitioning");
         window.setTimeout(() => setLiveState("live"), 1200);
@@ -742,11 +873,15 @@ export function SessionShell({
       const previousSceneId = currentScene?.id ?? null;
       const previousSegmentId = currentScene?.latestSegmentId ?? null;
 
+      await flushDraftAutosave();
       await patchCurrentScene({
         draftContent: draft,
         name: currentSceneName.trim() || undefined,
         publishedFromOffset: publishedOffset,
       });
+      if (currentSceneId) {
+        markScenePersisted(currentSceneId, draft, currentSceneName, publishedOffset);
+      }
 
       const response = await fetch(`/api/sessions/${sessionId}/scenes`, {
         method: "POST",
@@ -770,6 +905,7 @@ export function SessionShell({
       setCurrentSceneStarted(false);
       setDraft("");
       setPublishedOffset(0);
+      markScenePersisted(scene.id, "", "", 0);
       setReplaySceneId(null);
       setReplayMediaUrl(null);
       setReplayMediaKind(null);
@@ -795,11 +931,15 @@ export function SessionShell({
     }
 
     try {
+      await flushDraftAutosave();
       await patchCurrentScene({
         draftContent: draft,
         name: currentSceneName.trim() || undefined,
         publishedFromOffset: publishedOffset,
       });
+      if (currentSceneId) {
+        markScenePersisted(currentSceneId, draft, currentSceneName, publishedOffset);
+      }
       await patchSession({ currentSceneId: previousScene.id });
 
       setCurrentSceneId(previousScene.id);
@@ -807,6 +947,12 @@ export function SessionShell({
       setCurrentSceneStarted(previousScene.hasStarted);
       setDraft(previousScene.draftContent);
       setPublishedOffset(previousScene.publishedFromOffset);
+      markScenePersisted(
+        previousScene.id,
+        previousScene.draftContent,
+        isSystemSceneName(previousScene.name) ? "" : previousScene.name,
+        previousScene.publishedFromOffset,
+      );
       setReplaySceneId(null);
       setReplayMediaUrl(null);
       setReplayMediaKind(null);
@@ -827,11 +973,15 @@ export function SessionShell({
     }
 
     try {
+      await flushDraftAutosave();
       await patchCurrentScene({
         draftContent: draft,
         name: currentSceneName.trim() || undefined,
         publishedFromOffset: publishedOffset,
       });
+      if (currentSceneId) {
+        markScenePersisted(currentSceneId, draft, currentSceneName, publishedOffset);
+      }
       await patchSession({ currentSceneId: nextScene.id });
 
       setCurrentSceneId(nextScene.id);
@@ -839,6 +989,12 @@ export function SessionShell({
       setCurrentSceneStarted(nextScene.hasStarted);
       setDraft(nextScene.draftContent);
       setPublishedOffset(nextScene.publishedFromOffset);
+      markScenePersisted(
+        nextScene.id,
+        nextScene.draftContent,
+        isSystemSceneName(nextScene.name) ? "" : nextScene.name,
+        nextScene.publishedFromOffset,
+      );
       setReplaySceneId(null);
       setReplayMediaUrl(null);
       setReplayMediaKind(null);
@@ -895,6 +1051,7 @@ export function SessionShell({
     setIsSubmitting(true);
 
     try {
+      await flushDraftAutosave();
       await endActiveStream(currentSceneId, currentScene?.latestSegmentId ?? null);
 
       const response = await fetch(`/api/sessions/${sessionId}/sleep`, {
@@ -935,6 +1092,7 @@ export function SessionShell({
     setLiveState("resuming");
 
     try {
+      await flushDraftAutosave();
       const response = await fetch(`/api/sessions/${sessionId}/wake`, {
         method: "POST",
       });
@@ -953,6 +1111,7 @@ export function SessionShell({
       if (payload.segmentId) {
         await startLaunchedStream(payload.segmentId, payload.startPrompt, payload.frameKey);
       }
+      setLiveState("live");
 
       startTransition(() => {
         router.refresh();
@@ -966,12 +1125,12 @@ export function SessionShell({
     }
   }
 
-  function handleDirectionalInteract(prompt: string) {
+  function handleDirectionalInteract(direction: DirectionControl) {
     if (isSubmitting || replayMode || liveState !== "live") {
       return;
     }
 
-    interactQueue.enqueue(prompt);
+    interactQueue.enqueue(DIRECTION_INTERACT_PROMPTS[direction]);
   }
 
   return (

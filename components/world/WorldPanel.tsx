@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import type { DirectionControl } from "@/lib/session-config";
 import { VideoStream } from "@/components/world/VideoStream";
 import { WorldOverlay } from "@/components/world/overlays/WorldOverlay";
 import { WorldStatusBar } from "@/components/world/WorldStatusBar";
@@ -27,7 +28,7 @@ export function WorldPanel({
   replayMediaUrl?: string | null;
   replayMediaKind?: "image" | "video" | null;
   controlsDisabled?: boolean;
-  onDirectionInteract?: (prompt: string) => void;
+  onDirectionInteract?: (direction: DirectionControl) => void;
   onBackToCurrent?: () => void;
   onWake?: () => void;
   onRetry?: () => void;
@@ -89,11 +90,11 @@ export function WorldPanel({
       {liveState === "live" ? (
         <div className="absolute bottom-4 right-4 z-20 grid grid-cols-3 gap-2 pointer-events-auto">
           <div />
-          <ControlButton disabled={controlsDisabled} label="↑" promptLabel="Move forward" onClick={() => onDirectionInteract?.("Move forward")} />
+          <ControlButton disabled={controlsDisabled} label="↑" promptLabel="Move forward" onClick={() => onDirectionInteract?.("forward")} />
           <div />
-          <ControlButton disabled={controlsDisabled} label="←" promptLabel="Turn left" onClick={() => onDirectionInteract?.("Turn left")} />
-          <ControlButton disabled={controlsDisabled} label="↓" promptLabel="Move backward" onClick={() => onDirectionInteract?.("Move backward")} />
-          <ControlButton disabled={controlsDisabled} label="→" promptLabel="Turn right" onClick={() => onDirectionInteract?.("Turn right")} />
+          <ControlButton disabled={controlsDisabled} label="←" promptLabel="Turn left" onClick={() => onDirectionInteract?.("left")} />
+          <ControlButton disabled={controlsDisabled} label="↓" promptLabel="Move backward" onClick={() => onDirectionInteract?.("backward")} />
+          <ControlButton disabled={controlsDisabled} label="→" promptLabel="Turn right" onClick={() => onDirectionInteract?.("right")} />
         </div>
       ) : null}
       {liveState === "updating" ? (

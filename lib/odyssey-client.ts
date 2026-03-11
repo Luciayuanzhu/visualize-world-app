@@ -11,6 +11,7 @@ export interface OdysseyClientHandlers {
   onDisconnected?: () => void;
   onStreamStarted?: (streamId: string) => void;
   onStreamEnded?: () => void;
+  onStreamError?: (reason: string, message: string) => void;
   onError?: (error: Error) => void;
 }
 
@@ -29,6 +30,7 @@ type OdysseySdkClient = {
     onDisconnected?: () => void;
     onStreamStarted?: (streamId: string) => void;
     onStreamEnded?: () => void;
+    onStreamError?: (reason: string, message: string) => void;
     onError?: (error: Error, fatal: boolean) => void;
   }) => Promise<MediaStream>;
   startStream: (options?: {
@@ -90,6 +92,10 @@ export function createOdysseyClient(
       onStreamEnded() {
         currentStreamId = null;
         handlers.onStreamEnded?.();
+      },
+      onStreamError(reason, message) {
+        currentStreamId = null;
+        handlers.onStreamError?.(reason, message);
       },
       onError(error) {
         handlers.onError?.(error);
