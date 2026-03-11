@@ -986,7 +986,7 @@ export function SessionShell({
           liveVideoRef={liveVideoRef}
           replayMediaUrl={replayMediaUrl}
           replayMediaKind={replayMediaKind}
-          controlsDisabled={isSubmitting || replayMode || liveState !== "live"}
+          controlsDisabled={isSubmitting || replayMode}
           onDirectionInteract={handleDirectionalInteract}
           onBackToCurrent={handleBackToCurrent}
           onWake={handleWake}

@@ -86,8 +86,8 @@ export function WorldPanel({
           </p>
         </div>
       ) : null}
-      {liveState !== "idle" && liveState !== "error" && liveState !== "replay" ? (
-        <div className="absolute bottom-4 right-4 grid grid-cols-3 gap-2">
+      {liveState === "live" ? (
+        <div className="absolute bottom-4 right-4 z-20 grid grid-cols-3 gap-2 pointer-events-auto">
           <div />
           <ControlButton disabled={controlsDisabled} label="↑" promptLabel="Move forward" onClick={() => onDirectionInteract?.("Move forward")} />
           <div />
