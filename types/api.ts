@@ -22,6 +22,7 @@ export interface SessionDetail extends SessionSummary {
     publishedFromOffset: number;
     latestSegmentId: string | null;
     latestLastFrameKey: string | null;
+    latestLastFrameDataUrl: string | null;
     latestRecordingVideoKey: string | null;
     resumePrompt: string | null;
   }>;
@@ -78,6 +79,7 @@ export interface CreateSceneResponse {
   publishedFromOffset: number;
   latestSegmentId: string | null;
   latestLastFrameKey: string | null;
+  latestLastFrameDataUrl: string | null;
   latestRecordingVideoKey: string | null;
   resumePrompt: string | null;
 }

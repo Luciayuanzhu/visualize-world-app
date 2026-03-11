@@ -66,6 +66,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       publishedFromOffset: scene.publishedFromOffset,
       latestSegmentId: null,
       latestLastFrameKey: null,
+      latestLastFrameDataUrl: null,
       latestRecordingVideoKey: null,
       resumePrompt: null,
     },

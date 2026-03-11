@@ -13,7 +13,7 @@ type SessionWithRelations = WorldSession & {
     draftOffsetEnd: number | null;
     draftContent: string;
     publishedFromOffset: number;
-    segments: Array<Pick<StreamSegment, "id" | "lastFrameKey" | "recordingVideoKey">>;
+    segments: Array<Pick<StreamSegment, "id" | "lastFrameKey" | "lastFrameDataUrl" | "recordingVideoKey">>;
   }>;
   revisions: EditorRevision[];
   snapshots: WorldStateSnapshot[];
@@ -52,6 +52,7 @@ export function toSessionDetail(session: SessionWithRelations): SessionDetail {
     scenes: session.scenes.map((scene) => ({
       latestSegmentId: scene.segments[0]?.id ?? null,
       latestLastFrameKey: scene.segments[0]?.lastFrameKey ?? null,
+      latestLastFrameDataUrl: scene.segments[0]?.lastFrameDataUrl ?? null,
       latestRecordingVideoKey: scene.segments[0]?.recordingVideoKey ?? null,
       resumePrompt: scene.resumePrompt ?? null,
       id: scene.id,

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Timeline } from "@/components/layout/Timeline/Timeline";
-import { DeleteWorldDialog } from "@/components/session/DeleteWorldDialog";
 import { TopBar } from "@/components/layout/TopBar";
 import { TextPanel } from "@/components/text/TextPanel";
 import { WorldPanel } from "@/components/world/WorldPanel";
@@ -36,6 +35,7 @@ interface SceneDraftState {
   publishedFromOffset: number;
   latestSegmentId: string | null;
   latestLastFrameKey: string | null;
+  latestLastFrameDataUrl: string | null;
   latestRecordingVideoKey: string | null;
   resumePrompt: string | null;
 }
@@ -51,7 +51,6 @@ interface SessionShellProps {
   activeSceneName: string;
   initialWorldState: WorldState;
   initialSceneStarted: boolean;
-  canDelete?: boolean;
 }
 
 export function SessionShell({
@@ -65,9 +64,8 @@ export function SessionShell({
   activeSceneName,
   initialWorldState,
   initialSceneStarted,
-  canDelete = true,
 }: SessionShellProps) {
-  type PendingRequest = "publish" | "startScene" | "sleep" | "wake" | "delete" | null;
+  type PendingRequest = "publish" | "startScene" | "sleep" | "wake" | null;
 
   const router = useRouter();
   const [, startTransition] = useTransition();
@@ -84,7 +82,7 @@ export function SessionShell({
   const [publishedOffset, setPublishedOffset] = useState(lastPublishedOffset);
   const [worldState, setWorldState] = useState(initialWorldState);
   const [replaySceneId, setReplaySceneId] = useState<string | null>(initialLiveState === "replay" ? activeSceneId : null);
-  const [currentFrameUrl, setCurrentFrameUrl] = useState<string | null>(null);
+  const [currentFrameUrl, setCurrentFrameUrl] = useState(initialSceneRecord?.latestLastFrameDataUrl ?? null);
   const [replayMediaUrl, setReplayMediaUrl] = useState<string | null>(null);
   const [replayMediaKind, setReplayMediaKind] = useState<"image" | "video" | null>(null);
   const [liveMediaStream, setLiveMediaStream] = useState<MediaStream | null>(null);
@@ -92,8 +90,6 @@ export function SessionShell({
   const [pendingRequest, setPendingRequest] = useState<PendingRequest>(null);
   const [assistLoadingAction, setAssistLoadingAction] = useState<"continue" | "polish" | null>(null);
   const [movementStatus, setMovementStatus] = useState<string | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
   const [odysseyConfig, setOdysseyConfig] = useState<OdysseyClientConfigResponse>({ enabled: false, mode: "mock" });
   const odysseyClientRef = useRef<OdysseyClientHandle | null>(null);
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -289,6 +285,11 @@ export function SessionShell({
     let cancelled = false;
 
     const current = scenes.find((scene) => scene.id === currentSceneId) ?? null;
+    if (current?.latestLastFrameDataUrl) {
+      setCurrentFrameUrl(current.latestLastFrameDataUrl);
+      return;
+    }
+
     if (!current?.latestLastFrameKey && !current?.latestSegmentId) {
       setCurrentFrameUrl(null);
       return;
@@ -842,6 +843,7 @@ export function SessionShell({
 
     currentSceneIdRef.current = nextActiveScene?.id ?? null;
     currentSceneStartedRef.current = nextActiveScene?.hasStarted ?? false;
+    liveSegmentIdRef.current = nextActiveScene?.latestSegmentId ?? null;
     markScenePersisted(
       nextActiveScene?.id ?? null,
       nextActiveScene?.draftContent ?? "",
@@ -855,6 +857,7 @@ export function SessionShell({
     setCurrentSceneStarted(nextActiveScene?.hasStarted ?? false);
     setDraft(nextActiveScene?.draftContent ?? "");
     setPublishedOffset(nextActiveScene?.publishedFromOffset ?? 0);
+    setCurrentFrameUrl(nextActiveScene?.latestLastFrameDataUrl ?? null);
   }
 
   async function handleAssist(action: "continue" | "polish") {
@@ -1064,21 +1067,31 @@ export function SessionShell({
       }
 
       const scene = (await response.json()) as CreateSceneResponse;
-      await endActiveStream(previousSceneId, previousSegmentId);
       const nextScenes = [...scenes, scene];
 
+      currentSceneIdRef.current = scene.id;
+      currentSceneStartedRef.current = false;
+      liveSegmentIdRef.current = null;
       setScenes(nextScenes);
       setCurrentSceneId(scene.id);
       setCurrentSceneName("");
       setCurrentSceneStarted(false);
       setDraft("");
       setPublishedOffset(0);
+      setCurrentFrameUrl(null);
       markScenePersisted(scene.id, "", "", 0);
       setReplaySceneId(null);
       setReplayMediaUrl(null);
       setReplayMediaKind(null);
       setSleepReason("manual");
       setLiveState("idle");
+
+      void endActiveStream(previousSceneId, previousSegmentId).catch((error) => {
+        console.error(error);
+        void logClientEvent("error", "start new scene cleanup failed", {
+          message: error instanceof Error ? error.message : "unknown",
+        });
+      });
 
       startTransition(() => {
         router.refresh();
@@ -1111,11 +1124,15 @@ export function SessionShell({
       }
       await patchSession({ currentSceneId: previousScene.id });
 
+      currentSceneIdRef.current = previousScene.id;
+      currentSceneStartedRef.current = previousScene.hasStarted;
+      liveSegmentIdRef.current = previousScene.latestSegmentId;
       setCurrentSceneId(previousScene.id);
       setCurrentSceneName(isSystemSceneName(previousScene.name) ? "" : previousScene.name);
       setCurrentSceneStarted(previousScene.hasStarted);
       setDraft(previousScene.draftContent);
       setPublishedOffset(previousScene.publishedFromOffset);
+      setCurrentFrameUrl(previousScene.latestLastFrameDataUrl);
       markScenePersisted(
         previousScene.id,
         previousScene.draftContent,
@@ -1154,11 +1171,15 @@ export function SessionShell({
       }
       await patchSession({ currentSceneId: nextScene.id });
 
+      currentSceneIdRef.current = nextScene.id;
+      currentSceneStartedRef.current = nextScene.hasStarted;
+      liveSegmentIdRef.current = nextScene.latestSegmentId;
       setCurrentSceneId(nextScene.id);
       setCurrentSceneName(isSystemSceneName(nextScene.name) ? "" : nextScene.name);
       setCurrentSceneStarted(nextScene.hasStarted);
       setDraft(nextScene.draftContent);
       setPublishedOffset(nextScene.publishedFromOffset);
+      setCurrentFrameUrl(nextScene.latestLastFrameDataUrl);
       markScenePersisted(
         nextScene.id,
         nextScene.draftContent,
@@ -1304,48 +1325,6 @@ export function SessionShell({
     }
   }
 
-  async function handleDeleteSession() {
-    if (!canDelete || isSubmitting) {
-      return;
-    }
-
-    setPendingRequest("delete");
-    setDeleteErrorMessage(null);
-
-    try {
-      await flushDraftAutosave();
-
-      if (!replayMode && currentSceneStarted && currentSceneId) {
-        await endActiveStream(currentSceneId, currentScene?.latestSegmentId ?? null);
-      } else {
-        odysseyClientRef.current?.disconnect();
-      }
-
-      const response = await fetch(`/api/sessions/${sessionId}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error(`Delete failed with ${response.status}`);
-      }
-
-      setDeleteDialogOpen(false);
-      router.push("/sessions");
-      startTransition(() => {
-        router.refresh();
-      });
-    } catch (error) {
-      console.error(error);
-      const message = error instanceof Error ? error.message : "Delete failed.";
-      setDeleteErrorMessage(message);
-      void logClientEvent("error", "delete session failed", {
-        message,
-      });
-    } finally {
-      setPendingRequest(null);
-    }
-  }
-
   function handleDirectionalInteract(direction: DirectionControl) {
     if (isSubmitting || replayMode || liveState !== "live") {
       return;
@@ -1377,32 +1356,7 @@ export function SessionShell({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <TopBar
-        title={sessionTitle}
-        editable
-        onTitleChange={setSessionTitle}
-        onTitleSave={handleSessionTitleSave}
-        rightSlot={
-          canDelete ? (
-            <button
-              type="button"
-              onClick={() => {
-                setDeleteErrorMessage(null);
-                setDeleteDialogOpen(true);
-              }}
-              disabled={isSubmitting}
-              className="cursor-pointer rounded-lg border px-4 py-2 text-xs font-semibold transition duration-150 hover:brightness-110 disabled:cursor-not-allowed disabled:hover:brightness-100"
-              style={{
-                borderColor: "var(--border)",
-                color: isSubmitting ? "#796f61" : "var(--text-secondary)",
-                background: "rgba(255,255,255,0.03)",
-              }}
-            >
-              Delete World
-            </button>
-          ) : null
-        }
-      />
+      <TopBar title={sessionTitle} editable onTitleChange={setSessionTitle} onTitleSave={handleSessionTitleSave} />
       <main className="flex min-h-[calc(100vh-48px-72px)]">
         <WorldPanel
           liveState={liveState}
@@ -1445,20 +1399,6 @@ export function SessionShell({
         />
       </main>
       <Timeline scenes={scenes} activeSceneId={replayMode ? replaySceneId : currentSceneId} onSelectScene={handleSelectScene} />
-      <DeleteWorldDialog
-        open={deleteDialogOpen}
-        deleting={pendingRequest === "delete"}
-        title={sessionTitle.trim() || "Untitled World"}
-        errorMessage={deleteErrorMessage}
-        onCancel={() => {
-          if (pendingRequest === "delete") {
-            return;
-          }
-          setDeleteErrorMessage(null);
-          setDeleteDialogOpen(false);
-        }}
-        onConfirm={handleDeleteSession}
-      />
     </div>
   );
 }

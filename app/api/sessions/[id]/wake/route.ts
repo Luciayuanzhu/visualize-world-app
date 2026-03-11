@@ -18,7 +18,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
         include: {
           segments: {
             orderBy: { startedAt: "desc" },
-            select: { id: true, lastFrameKey: true, recordingVideoKey: true },
+            select: { id: true, lastFrameKey: true, lastFrameDataUrl: true, recordingVideoKey: true },
             take: 1,
           },
         },
@@ -100,7 +100,7 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
           include: {
             segments: {
               orderBy: { startedAt: "desc" },
-              select: { id: true, lastFrameKey: true, recordingVideoKey: true },
+              select: { id: true, lastFrameKey: true, lastFrameDataUrl: true, recordingVideoKey: true },
               take: 1,
             },
           },

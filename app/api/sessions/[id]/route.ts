@@ -15,7 +15,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
         include: {
           segments: {
             orderBy: { startedAt: "desc" },
-            select: { id: true, lastFrameKey: true, recordingVideoKey: true },
+            select: { id: true, lastFrameKey: true, lastFrameDataUrl: true, recordingVideoKey: true },
             take: 1,
           },
         },

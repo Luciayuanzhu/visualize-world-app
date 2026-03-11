@@ -35,15 +35,15 @@ export default async function SessionPage({
           publishedFromOffset: scene.publishedFromOffset,
           latestSegmentId: null,
           latestLastFrameKey: null,
+          latestLastFrameDataUrl: null,
           latestRecordingVideoKey: null,
           resumePrompt: null,
         }))}
         activeSceneId={screen.activeSceneId}
         activeSceneName={screen.activeSceneName}
-      initialWorldState={DEMO_WORLD_STATE}
-      initialSceneStarted={screen.liveState !== "idle"}
-      canDelete={false}
-    />
+        initialWorldState={DEMO_WORLD_STATE}
+        initialSceneStarted={screen.liveState !== "idle"}
+      />
     );
   }
 
@@ -56,7 +56,7 @@ export default async function SessionPage({
         include: {
           segments: {
             orderBy: { startedAt: "desc" },
-            select: { id: true, lastFrameKey: true, recordingVideoKey: true },
+            select: { id: true, lastFrameKey: true, lastFrameDataUrl: true, recordingVideoKey: true },
             take: 1,
           },
         },
@@ -85,15 +85,15 @@ export default async function SessionPage({
           publishedFromOffset: scene.publishedFromOffset,
           latestSegmentId: null,
           latestLastFrameKey: null,
+          latestLastFrameDataUrl: null,
           latestRecordingVideoKey: null,
           resumePrompt: null,
         }))}
         activeSceneId={screen.activeSceneId}
         activeSceneName={screen.activeSceneName}
-      initialWorldState={DEMO_WORLD_STATE}
-      initialSceneStarted={screen.liveState !== "idle"}
-      canDelete={false}
-    />
+        initialWorldState={DEMO_WORLD_STATE}
+        initialSceneStarted={screen.liveState !== "idle"}
+      />
     );
   }
 
@@ -128,6 +128,7 @@ export default async function SessionPage({
         publishedFromOffset: scene.publishedFromOffset,
         latestSegmentId: scene.latestSegmentId,
         latestLastFrameKey: scene.latestLastFrameKey,
+        latestLastFrameDataUrl: scene.latestLastFrameDataUrl,
         latestRecordingVideoKey: scene.latestRecordingVideoKey,
         resumePrompt: scene.resumePrompt,
       }))}
@@ -135,7 +136,6 @@ export default async function SessionPage({
       activeSceneName={activeScene?.name ?? "Untitled Scene"}
       initialWorldState={detail.worldState ?? DEMO_WORLD_STATE}
       initialSceneStarted={activeScene?.hasStarted ?? false}
-      canDelete
     />
   );
 }

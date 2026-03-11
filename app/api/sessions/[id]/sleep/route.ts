@@ -113,11 +113,11 @@ export async function POST(_: Request, { params }: { params: Promise<{ id: strin
         scenes: {
           orderBy: { index: "asc" },
           include: {
-            segments: {
-              orderBy: { startedAt: "desc" },
-              select: { id: true, lastFrameKey: true, recordingVideoKey: true },
-              take: 1,
-            },
+              segments: {
+                orderBy: { startedAt: "desc" },
+                select: { id: true, lastFrameKey: true, lastFrameDataUrl: true, recordingVideoKey: true },
+                take: 1,
+              },
           },
         },
         revisions: { orderBy: { createdAt: "desc" }, take: 1 },
