@@ -4,11 +4,11 @@ export type DirectionControl = "forward" | "backward" | "left" | "right";
 
 export const DIRECTION_INTERACT_PROMPTS: Record<DirectionControl, string> = {
   forward:
-    "Continue moving forward through the current world with a clear, noticeable advance in space. Preserve the same environment, characters, lighting, and scene continuity. Show strong forward motion and reveal new details ahead.",
+    "Move forward in a strong first-person exploration motion, as if walking several steps deeper into the current environment. Preserve exact scene continuity and make the spatial advance clearly visible with strong parallax and newly revealed detail ahead.",
   backward:
-    "Move backward noticeably from the current viewpoint, as if stepping back in the same scene. Preserve world continuity, lighting, and composition logic, and clearly reveal more of the surrounding space behind or around the viewer.",
+    "Move backward in a strong first-person exploration motion, as if stepping back several steps in the same environment. Preserve exact scene continuity and make the retreat clearly visible with a wider reveal of the nearby surroundings.",
   left:
-    "Turn the camera and viewpoint clearly to the left within the same world and same moment. Do not change the setting or reset the scene. Make the leftward rotation obvious and reveal what is located to the left of the current view.",
+    "Turn left sharply in first-person within the same continuous scene, revealing what lies to the left right now. Keep all world details consistent and make the directional change immediate and obvious.",
   right:
-    "Turn the camera and viewpoint clearly to the right within the same world and same moment. Do not change the setting or reset the scene. Make the rightward rotation obvious and reveal what is located to the right of the current view.",
+    "Turn right sharply in first-person within the same continuous scene, revealing what lies to the right right now. Keep all world details consistent and make the directional change immediate and obvious.",
 };
