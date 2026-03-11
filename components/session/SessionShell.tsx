@@ -99,6 +99,7 @@ export function SessionShell({
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
   const autosaveTimeoutRef = useRef<number | null>(null);
   const movementStatusTimeoutRef = useRef<number | null>(null);
+  const previewCaptureTimeoutRef = useRef<number | null>(null);
   const liveStateRef = useRef<LiveState>(initialLiveState);
   const sleepReasonRef = useRef<SleepReason>("manual");
   const pendingSleepReasonRef = useRef<SleepReason | null>(null);
@@ -111,6 +112,9 @@ export function SessionShell({
   );
   const lastPersistedPublishedOffsetRef = useRef(lastPublishedOffset);
   const replayModeRef = useRef(initialLiveState === "replay");
+  const liveSegmentIdRef = useRef<string | null>(initialSceneRecord?.latestSegmentId ?? null);
+  const previewCapturedSegmentIdRef = useRef<string | null>(null);
+  const queuePreviewCaptureRef = useRef<() => void>(() => {});
   const { captureFrame } = useFrameCapture();
 
   const replayMode = liveState === "replay";
@@ -156,6 +160,10 @@ export function SessionShell({
     replayModeRef.current = replayMode;
   }, [replayMode]);
 
+  useEffect(() => {
+    liveSegmentIdRef.current = currentScene?.latestSegmentId ?? null;
+  }, [currentScene?.latestSegmentId]);
+
   const markScenePersisted = useCallback(
     (sceneId: string | null, nextDraft: string, nextSceneName: string, nextPublishedOffset: number) => {
       lastPersistedSceneIdRef.current = sceneId;
@@ -177,6 +185,13 @@ export function SessionShell({
     if (movementStatusTimeoutRef.current !== null) {
       window.clearTimeout(movementStatusTimeoutRef.current);
       movementStatusTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearPreviewCaptureTimer = useCallback(() => {
+    if (previewCaptureTimeoutRef.current !== null) {
+      window.clearTimeout(previewCaptureTimeoutRef.current);
+      previewCaptureTimeoutRef.current = null;
     }
   }, []);
   const replayScene = useMemo(
@@ -356,6 +371,7 @@ export function SessionShell({
               pendingSleepReasonRef.current = null;
               setSleepReason("manual");
               setLiveMediaStream(stream);
+              queuePreviewCaptureRef.current();
               if (
                 liveStateRef.current === "starting" ||
                 liveStateRef.current === "resuming" ||
@@ -482,6 +498,12 @@ export function SessionShell({
     };
   }, [clearMovementStatusTimer]);
 
+  useEffect(() => {
+    return () => {
+      clearPreviewCaptureTimer();
+    };
+  }, [clearPreviewCaptureTimer]);
+
   useInactivitySleep(
     null,
     () => {
@@ -535,6 +557,74 @@ export function SessionShell({
     });
   }
 
+  const persistPreviewFrame = useCallback(async (segmentId: string, dataUrl: string) => {
+    const response = await fetch(`/api/segments/${segmentId}/preview-frame`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        lastFrameDataUrl: dataUrl,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Preview frame save failed with ${response.status}`);
+    }
+  }, []);
+
+  const queuePreviewCapture = useCallback(() => {
+    clearPreviewCaptureTimer();
+
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    const runCapture = () => {
+      attempts += 1;
+      const segmentId = liveSegmentIdRef.current;
+      if (!segmentId || previewCapturedSegmentIdRef.current === segmentId) {
+        previewCaptureTimeoutRef.current = null;
+        return;
+      }
+
+      void captureFrame(liveVideoRef.current)
+        .then(async (capture) => {
+          if (!capture?.dataUrl) {
+            if (attempts < maxAttempts) {
+              previewCaptureTimeoutRef.current = window.setTimeout(runCapture, 1200);
+            } else {
+              previewCaptureTimeoutRef.current = null;
+            }
+            return;
+          }
+
+          await persistPreviewFrame(segmentId, capture.dataUrl);
+          previewCapturedSegmentIdRef.current = segmentId;
+          setCurrentFrameUrl(capture.objectUrl);
+          previewCaptureTimeoutRef.current = null;
+        })
+        .catch((error) => {
+          console.error(error);
+          void logClientEvent("warn", "preview frame capture failed", {
+            segmentId,
+            attempt: attempts,
+            message: error instanceof Error ? error.message : "unknown",
+          });
+          if (attempts < maxAttempts) {
+            previewCaptureTimeoutRef.current = window.setTimeout(runCapture, 1200);
+          } else {
+            previewCaptureTimeoutRef.current = null;
+          }
+        });
+    };
+
+    previewCaptureTimeoutRef.current = window.setTimeout(runCapture, 1800);
+  }, [captureFrame, clearPreviewCaptureTimer, logClientEvent, persistPreviewFrame]);
+
+  useEffect(() => {
+    queuePreviewCaptureRef.current = queuePreviewCapture;
+  }, [queuePreviewCapture]);
+
   async function reserveFrameKey(sceneId: string) {
     const response = await fetch("/api/storage/frame-upload-url", {
       method: "POST",
@@ -563,6 +653,7 @@ export function SessionShell({
           pendingSleepReasonRef.current = null;
           setSleepReason("manual");
           setLiveMediaStream(stream);
+          queuePreviewCaptureRef.current();
           if (
             liveStateRef.current === "starting" ||
             liveStateRef.current === "resuming" ||
@@ -623,6 +714,7 @@ export function SessionShell({
       return null;
     }
 
+    clearPreviewCaptureTimer();
     let frameKey: string | null = null;
     let frameDataUrl: string | null = null;
 
@@ -641,6 +733,9 @@ export function SessionShell({
     }
 
     await ensureOdysseyClient().endStream();
+    if (liveSegmentIdRef.current === segmentId) {
+      liveSegmentIdRef.current = null;
+    }
     try {
       await fetch(`/api/segments/${segmentId}/end-ack`, {
         method: "POST",
@@ -665,6 +760,8 @@ export function SessionShell({
 
   async function startLaunchedStream(segmentId: string, prompt: string, frameKey: string | null) {
     let seedImage: Blob | null = null;
+    liveSegmentIdRef.current = segmentId;
+    previewCapturedSegmentIdRef.current = null;
 
     if (frameKey) {
       try {

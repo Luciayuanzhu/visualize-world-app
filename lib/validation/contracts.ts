@@ -127,6 +127,10 @@ export const endAckSchema = z.object({
   lastFrameDataUrl: z.string().optional(),
 });
 
+export const previewFrameSchema = z.object({
+  lastFrameDataUrl: z.string().min(1),
+});
+
 export const frameUploadRequestSchema = z.object({
   sessionId: z.string().min(1),
   sceneId: z.string().min(1),
