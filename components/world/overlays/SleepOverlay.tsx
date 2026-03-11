@@ -22,7 +22,7 @@ export function SleepOverlay({ onWake, reason = "manual" }: SleepOverlayProps) {
         {description}
       </p>
       <button
-        className="mt-6 rounded-xl px-6 py-3 text-sm font-bold"
+        className="mt-6 cursor-pointer rounded-xl px-6 py-3 text-sm font-bold transition duration-150 hover:brightness-110 disabled:cursor-not-allowed disabled:hover:brightness-100"
         style={{ background: "var(--accent)", color: "#1f180d" }}
         onClick={onWake}
         type="button"

@@ -35,7 +35,7 @@ export function WorldOverlay({ liveState, sleepReason, sceneName, onBackToCurren
           <button
             type="button"
             onClick={onRetry}
-            className="mt-6 rounded-full border px-6 py-2 text-sm font-semibold transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-40"
+            className="mt-6 cursor-pointer rounded-full border px-6 py-2 text-sm font-semibold transition duration-150 hover:bg-white/5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:brightness-100"
             style={{ borderColor: "rgba(255,255,255,0.18)" }}
             disabled={!onRetry}
           >

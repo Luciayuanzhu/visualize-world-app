@@ -15,6 +15,7 @@ export function WorldPanel({
   replayMediaUrl,
   replayMediaKind,
   sleepReason,
+  movementStatus,
   controlsDisabled = false,
   onDirectionInteract,
   onBackToCurrent,
@@ -29,6 +30,7 @@ export function WorldPanel({
   replayMediaUrl?: string | null;
   replayMediaKind?: "image" | "video" | null;
   sleepReason?: SleepReason;
+  movementStatus?: string | null;
   controlsDisabled?: boolean;
   onDirectionInteract?: (direction: DirectionControl) => void;
   onBackToCurrent?: () => void;
@@ -104,6 +106,14 @@ export function WorldPanel({
           World reacting…
         </div>
       ) : null}
+      {movementStatus ? (
+        <div
+          className="absolute bottom-4 left-4 z-20 rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.12em]"
+          style={{ borderColor: "rgba(255,255,255,0.12)", background: "rgba(8,8,8,0.56)", color: "var(--text-primary)", backdropFilter: "blur(10px)" }}
+        >
+          {movementStatus}
+        </div>
+      ) : null}
       <WorldOverlay
         liveState={liveState}
         sleepReason={sleepReason}
@@ -134,7 +144,7 @@ function ControlButton({
       onClick={onClick}
       aria-label={promptLabel}
       title={promptLabel}
-      className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border text-lg font-semibold transition disabled:cursor-not-allowed disabled:opacity-35"
+      className="inline-flex h-11 w-11 cursor-pointer items-center justify-center rounded-2xl border text-lg font-semibold transition duration-150 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:brightness-100"
       style={{
         borderColor: "rgba(255,255,255,0.12)",
         background: "rgba(8,8,8,0.52)",

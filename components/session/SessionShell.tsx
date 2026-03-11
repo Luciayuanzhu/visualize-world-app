@@ -64,6 +64,8 @@ export function SessionShell({
   initialWorldState,
   initialSceneStarted,
 }: SessionShellProps) {
+  type PendingRequest = "publish" | "startScene" | "sleep" | "wake" | null;
+
   const router = useRouter();
   const [, startTransition] = useTransition();
   const initialSceneRecord = initialScenes.find((scene) => scene.id === activeSceneId) ?? null;
@@ -84,12 +86,14 @@ export function SessionShell({
   const [replayMediaKind, setReplayMediaKind] = useState<"image" | "video" | null>(null);
   const [liveMediaStream, setLiveMediaStream] = useState<MediaStream | null>(null);
   const [sleepReason, setSleepReason] = useState<SleepReason>("manual");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingRequest, setPendingRequest] = useState<PendingRequest>(null);
   const [assistLoadingAction, setAssistLoadingAction] = useState<"continue" | "polish" | null>(null);
+  const [movementStatus, setMovementStatus] = useState<string | null>(null);
   const [odysseyConfig, setOdysseyConfig] = useState<OdysseyClientConfigResponse>({ enabled: false, mode: "mock" });
   const odysseyClientRef = useRef<OdysseyClientHandle | null>(null);
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
   const autosaveTimeoutRef = useRef<number | null>(null);
+  const movementStatusTimeoutRef = useRef<number | null>(null);
   const liveStateRef = useRef<LiveState>(initialLiveState);
   const sleepReasonRef = useRef<SleepReason>("manual");
   const pendingSleepReasonRef = useRef<SleepReason | null>(null);
@@ -105,6 +109,7 @@ export function SessionShell({
   const { captureFrame } = useFrameCapture();
 
   const replayMode = liveState === "replay";
+  const isSubmitting = pendingRequest !== null;
   const currentScene = useMemo(
     () => scenes.find((scene) => scene.id === currentSceneId) ?? null,
     [scenes, currentSceneId],
@@ -162,6 +167,13 @@ export function SessionShell({
       autosaveTimeoutRef.current = null;
     }
   }, []);
+
+  const clearMovementStatusTimer = useCallback(() => {
+    if (movementStatusTimeoutRef.current !== null) {
+      window.clearTimeout(movementStatusTimeoutRef.current);
+      movementStatusTimeoutRef.current = null;
+    }
+  }, []);
   const replayScene = useMemo(
     () => scenes.find((scene) => scene.id === replaySceneId) ?? null,
     [scenes, replaySceneId],
@@ -175,7 +187,20 @@ export function SessionShell({
       return;
     }
 
-    await odysseyClientRef.current?.interact(prompt);
+    try {
+      await odysseyClientRef.current?.interact(prompt);
+      void logClientEvent("info", "direction interact acknowledged", {
+        prompt,
+      });
+    } catch (error) {
+      console.error(error);
+      void logClientEvent("error", "direction interact failed", {
+        prompt,
+        message: error instanceof Error ? error.message : "unknown",
+      });
+      clearMovementStatusTimer();
+      setMovementStatus(null);
+    }
   });
 
   const loadFrameUrl = useCallback(async (frameKey: string | null | undefined, segmentId?: string | null) => {
@@ -445,6 +470,12 @@ export function SessionShell({
       clearAutosaveTimer();
     };
   }, [clearAutosaveTimer]);
+
+  useEffect(() => {
+    return () => {
+      clearMovementStatusTimer();
+    };
+  }, [clearMovementStatusTimer]);
 
   useInactivitySleep(
     null,
@@ -819,7 +850,7 @@ export function SessionShell({
       return;
     }
 
-    setIsSubmitting(true);
+    setPendingRequest("publish");
     pendingSleepReasonRef.current = null;
     setSleepReason("manual");
     setLiveState(hasWorldStarted ? "updating" : "starting");
@@ -891,7 +922,7 @@ export function SessionShell({
       });
       setLiveState("error");
     } finally {
-      setIsSubmitting(false);
+      setPendingRequest(null);
     }
   }
 
@@ -900,7 +931,7 @@ export function SessionShell({
       return;
     }
 
-    setIsSubmitting(true);
+    setPendingRequest("startScene");
     pendingSleepReasonRef.current = null;
     setSleepReason("manual");
 
@@ -957,7 +988,7 @@ export function SessionShell({
       });
       setLiveState("error");
     } finally {
-      setIsSubmitting(false);
+      setPendingRequest(null);
     }
   }
 
@@ -1087,7 +1118,7 @@ export function SessionShell({
       return;
     }
 
-    setIsSubmitting(true);
+    setPendingRequest("sleep");
 
     try {
       pendingSleepReasonRef.current = "manual";
@@ -1121,7 +1152,7 @@ export function SessionShell({
       });
       setLiveState("error");
     } finally {
-      setIsSubmitting(false);
+      setPendingRequest(null);
     }
   }
 
@@ -1132,6 +1163,7 @@ export function SessionShell({
 
     pendingSleepReasonRef.current = null;
     setSleepReason("manual");
+    setPendingRequest("wake");
     setLiveState("resuming");
 
     try {
@@ -1165,6 +1197,8 @@ export function SessionShell({
         message: error instanceof Error ? error.message : "unknown",
       });
       setLiveState("error");
+    } finally {
+      setPendingRequest(null);
     }
   }
 
@@ -1173,7 +1207,28 @@ export function SessionShell({
       return;
     }
 
-    interactQueue.enqueue(DIRECTION_INTERACT_PROMPTS[direction]);
+    const prompt = DIRECTION_INTERACT_PROMPTS[direction];
+    const movementLabel =
+      direction === "forward"
+        ? "Moving forward..."
+        : direction === "backward"
+          ? "Moving backward..."
+          : direction === "left"
+            ? "Turning left..."
+            : "Turning right...";
+
+    clearMovementStatusTimer();
+    setMovementStatus(movementLabel);
+    movementStatusTimeoutRef.current = window.setTimeout(() => {
+      setMovementStatus(null);
+      movementStatusTimeoutRef.current = null;
+    }, 10_000);
+    void logClientEvent("info", "direction interact requested", {
+      direction,
+      prompt,
+    });
+
+    interactQueue.enqueue(prompt);
   }
 
   return (
@@ -1189,6 +1244,7 @@ export function SessionShell({
           replayMediaUrl={replayMediaUrl}
           replayMediaKind={replayMediaKind}
           sleepReason={sleepReason}
+          movementStatus={movementStatus}
           controlsDisabled={isSubmitting || replayMode}
           onDirectionInteract={handleDirectionalInteract}
           onBackToCurrent={handleBackToCurrent}
@@ -1215,6 +1271,8 @@ export function SessionShell({
           replayMode={replayMode}
           currentReplaySceneName={selectedSceneName}
           isSubmitting={isSubmitting}
+          publishLoading={pendingRequest === "publish"}
+          startSceneLoading={pendingRequest === "startScene"}
         />
       </main>
       <Timeline scenes={scenes} activeSceneId={replayMode ? replaySceneId : currentSceneId} onSelectScene={handleSelectScene} />

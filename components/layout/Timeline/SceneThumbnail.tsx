@@ -14,7 +14,7 @@ export function SceneThumbnail({ index, name, active = false, onClick }: SceneTh
 
   return (
     <button
-      className="flex min-w-[120px] items-center gap-2 rounded-lg border p-2"
+      className="flex min-w-[120px] cursor-pointer items-center gap-2 rounded-lg border p-2 transition duration-150 hover:brightness-110 disabled:cursor-not-allowed disabled:hover:brightness-100"
       onClick={onClick}
       style={{
         borderColor: active ? "var(--accent)" : "var(--border)",

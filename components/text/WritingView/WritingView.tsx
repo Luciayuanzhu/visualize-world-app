@@ -24,6 +24,8 @@ interface WritingViewProps {
   replayMode?: boolean;
   currentReplaySceneName?: string;
   isSubmitting?: boolean;
+  publishLoading?: boolean;
+  startSceneLoading?: boolean;
 }
 
 export function WritingView({
@@ -46,18 +48,21 @@ export function WritingView({
   replayMode = false,
   currentReplaySceneName = "Scene 1",
   isSubmitting = false,
+  publishLoading = false,
+  startSceneLoading = false,
 }: WritingViewProps) {
   const isBelowThreshold = !hasWorldStarted && draft.trim().length < PRE_WORLD_MIN_CHARACTERS;
   const disabled = replayMode || isSubmitting || (hasWorldStarted ? !hasUnpublishedText : isBelowThreshold);
   const label = hasWorldStarted ? "Evolve" : "Conjure World";
   const newSceneDisabled = replayMode || isSubmitting || !hasWorldStarted;
+  const remainingCharacters = Math.max(PRE_WORLD_MIN_CHARACTERS - draft.trim().length, 0);
 
   return (
     <section className="flex min-w-[360px] flex-[2] flex-col bg-[color:var(--bg-surface)]">
       <div className="px-8 pt-6">
         <div className="flex items-start gap-3">
           <button
-            className="mt-7 inline-flex h-9 w-9 items-center justify-center rounded-full border text-sm"
+            className="mt-7 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border text-sm transition duration-150 hover:brightness-110 disabled:cursor-not-allowed disabled:hover:brightness-100"
             disabled={!canGoToPreviousScene || replayMode}
             onClick={onGoToPreviousScene}
             style={{
@@ -77,7 +82,7 @@ export function WritingView({
               <div className="flex items-center gap-2">
                 <div className="group relative">
                   <button
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-sm"
+                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border text-sm transition duration-150 hover:brightness-110 disabled:cursor-not-allowed disabled:hover:brightness-100"
                     disabled={replayMode || isSubmitting || assistLoadingAction !== null}
                     onClick={() => onAssist?.("continue")}
                     style={{
@@ -103,7 +108,7 @@ export function WritingView({
                 </div>
                 <div className="group relative">
                   <button
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full border text-sm"
+                    className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border text-sm transition duration-150 hover:brightness-110 disabled:cursor-not-allowed disabled:hover:brightness-100"
                     disabled={replayMode || isSubmitting || assistLoadingAction !== null}
                     onClick={() => onAssist?.("polish")}
                     style={{
@@ -139,7 +144,7 @@ export function WritingView({
             />
           </div>
           <button
-            className="mt-7 inline-flex h-9 w-9 items-center justify-center rounded-full border text-sm"
+            className="mt-7 inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border text-sm transition duration-150 hover:brightness-110 disabled:cursor-not-allowed disabled:hover:brightness-100"
             disabled={!canGoToNextScene || replayMode}
             onClick={onGoToNextScene}
             style={{
@@ -163,8 +168,13 @@ export function WritingView({
           </p>
         ) : null}
         <p className="mt-2 text-sm leading-6" style={{ color: "var(--text-secondary)" }}>
-          Publish changes with {label}.
+          {hasWorldStarted ? `Publish changes with ${label}.` : `Write at least ${PRE_WORLD_MIN_CHARACTERS} characters to enable Conjure World.`}
         </p>
+        {!hasWorldStarted && remainingCharacters > 0 ? (
+          <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>
+            {remainingCharacters} more characters to conjure
+          </p>
+        ) : null}
       </div>
       <div className="flex-1 overflow-auto px-8 py-6">
         <div className="mb-6 flex items-center justify-between text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: "var(--text-muted)" }}>
@@ -176,7 +186,7 @@ export function WritingView({
       <div className="border-t px-8 py-5" style={{ borderColor: "var(--border)" }}>
         <div className="flex gap-3">
           <button
-            className="rounded-xl border px-4 py-3 text-sm font-semibold"
+            className="rounded-xl border px-4 py-3 text-sm font-semibold transition duration-150 hover:brightness-110 disabled:cursor-not-allowed disabled:hover:brightness-100"
             disabled={newSceneDisabled}
             onClick={onStartNewScene}
             style={{
@@ -186,10 +196,10 @@ export function WritingView({
             }}
             type="button"
           >
-            Start New Scene
+            {startSceneLoading ? "Starting Scene…" : "Start New Scene"}
           </button>
           <div className="flex-1">
-            <EvolveButton label={label} disabled={disabled} loading={isSubmitting} onClick={onPublish} />
+            <EvolveButton label={label} disabled={disabled} loading={publishLoading} loadingLabel={hasWorldStarted ? "Publishing…" : "Conjuring…"} onClick={onPublish} />
           </div>
         </div>
       </div>

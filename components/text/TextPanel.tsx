@@ -22,6 +22,8 @@ interface TextPanelProps {
   replayMode?: boolean;
   currentReplaySceneName?: string;
   isSubmitting?: boolean;
+  publishLoading?: boolean;
+  startSceneLoading?: boolean;
 }
 
 export function TextPanel(props: TextPanelProps) {
