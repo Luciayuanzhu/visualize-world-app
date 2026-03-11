@@ -707,7 +707,6 @@ export function SessionShell({
           setLiveState("transitioning");
         }
         await startLaunchedStream(payload.launch.segmentId, payload.launch.prompt, payload.launch.frameKey);
-        setLiveState(payload.action.type === "transition" ? "transitioning" : "starting");
       } else if (payload.action.type === "transition") {
         setLiveState("transitioning");
         window.setTimeout(() => setLiveState("live"), 1200);
@@ -954,7 +953,6 @@ export function SessionShell({
       if (payload.segmentId) {
         await startLaunchedStream(payload.segmentId, payload.startPrompt, payload.frameKey);
       }
-      setLiveState("resuming");
 
       startTransition(() => {
         router.refresh();
