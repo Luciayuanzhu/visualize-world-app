@@ -1,0 +1,1 @@
+export const PRE_WORLD_MIN_CHARACTERS = 50;

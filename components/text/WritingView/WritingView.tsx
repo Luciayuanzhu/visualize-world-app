@@ -2,6 +2,7 @@
 
 import { DraftEditor } from "@/components/text/WritingView/DraftEditor";
 import { EvolveButton } from "@/components/text/WritingView/EvolveButton";
+import { PRE_WORLD_MIN_CHARACTERS } from "@/lib/session-config";
 
 interface WritingViewProps {
   draft: string;
@@ -46,7 +47,7 @@ export function WritingView({
   currentReplaySceneName = "Scene 1",
   isSubmitting = false,
 }: WritingViewProps) {
-  const isBelowThreshold = !hasWorldStarted && draft.trim().length < 100;
+  const isBelowThreshold = !hasWorldStarted && draft.trim().length < PRE_WORLD_MIN_CHARACTERS;
   const disabled = replayMode || isSubmitting || (hasWorldStarted ? !hasUnpublishedText : isBelowThreshold);
   const label = hasWorldStarted ? "Evolve" : "Conjure World";
   const newSceneDisabled = replayMode || isSubmitting || !hasWorldStarted;

@@ -10,6 +10,7 @@ import { useFrameCapture } from "@/hooks/useFrameCapture";
 import { useInactivitySleep } from "@/hooks/useInactivitySleep";
 import { useInteractQueue } from "@/hooks/useInteractQueue";
 import { createOdysseyClient, type OdysseyClientHandle } from "@/lib/odyssey-client";
+import { PRE_WORLD_MIN_CHARACTERS } from "@/lib/session-config";
 import { mergeWorldState } from "@/lib/world-state";
 import type {
   AssistDraftResponse,
@@ -88,6 +89,7 @@ export function SessionShell({
   const odysseyClientRef = useRef<OdysseyClientHandle | null>(null);
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
   const liveStateRef = useRef<LiveState>(initialLiveState);
+  const currentSceneIdRef = useRef<string | null>(activeSceneId);
   const currentSceneStartedRef = useRef(initialSceneStarted);
   const replayModeRef = useRef(initialLiveState === "replay");
   const { captureFrame } = useFrameCapture();
@@ -119,6 +121,10 @@ export function SessionShell({
   }, [liveState]);
 
   useEffect(() => {
+    currentSceneIdRef.current = currentSceneId;
+  }, [currentSceneId]);
+
+  useEffect(() => {
     currentSceneStartedRef.current = currentSceneStarted;
   }, [currentSceneStarted]);
 
@@ -131,7 +137,7 @@ export function SessionShell({
   );
   const selectedSceneName = replayMode ? replayScene?.name ?? currentSceneName : currentSceneName;
   const hasWorldStarted = currentSceneStarted;
-  const hasUnpublishedText = hasWorldStarted ? draft.length > publishedOffset : draft.trim().length >= 100;
+  const hasUnpublishedText = hasWorldStarted ? draft.length > publishedOffset : draft.trim().length >= PRE_WORLD_MIN_CHARACTERS;
 
   const interactQueue = useInteractQueue(async (prompt: string) => {
     if (!prompt) {
@@ -234,7 +240,7 @@ export function SessionShell({
         message,
         meta: {
           sessionId,
-          currentSceneId,
+          currentSceneId: currentSceneIdRef.current,
           liveState: liveStateRef.current,
           ...meta,
         },
@@ -253,7 +259,7 @@ export function SessionShell({
         console.error(error);
       }
     },
-    [currentSceneId, sessionId],
+    [sessionId],
   );
 
   useEffect(() => {
@@ -528,7 +534,7 @@ export function SessionShell({
       return;
     }
 
-    if (draft.trim().length >= 100) {
+    if (draft.trim().length >= PRE_WORLD_MIN_CHARACTERS) {
       await handlePublish();
       return;
     }
@@ -552,6 +558,8 @@ export function SessionShell({
     const nextActiveScene =
       detail.scenes.find((scene) => scene.id === detail.currentSceneId) ?? detail.scenes[detail.scenes.length - 1] ?? null;
 
+    currentSceneIdRef.current = nextActiveScene?.id ?? null;
+    currentSceneStartedRef.current = nextActiveScene?.hasStarted ?? false;
     setSessionTitle(detail.title);
     setScenes(detail.scenes);
     setCurrentSceneId(nextActiveScene?.id ?? null);
@@ -960,6 +968,14 @@ export function SessionShell({
     }
   }
 
+  function handleDirectionalInteract(prompt: string) {
+    if (isSubmitting || replayMode || liveState !== "live") {
+      return;
+    }
+
+    interactQueue.enqueue(prompt);
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <TopBar title={sessionTitle} editable onTitleChange={setSessionTitle} onTitleSave={handleSessionTitleSave} />
@@ -970,12 +986,14 @@ export function SessionShell({
           currentFrameUrl={currentFrameUrl}
           liveMediaStream={liveMediaStream}
           liveVideoRef={liveVideoRef}
-        replayMediaUrl={replayMediaUrl}
-        replayMediaKind={replayMediaKind}
-        onBackToCurrent={handleBackToCurrent}
-        onWake={handleWake}
-        onRetry={handleRetry}
-      />
+          replayMediaUrl={replayMediaUrl}
+          replayMediaKind={replayMediaKind}
+          controlsDisabled={isSubmitting || replayMode || liveState !== "live"}
+          onDirectionInteract={handleDirectionalInteract}
+          onBackToCurrent={handleBackToCurrent}
+          onWake={handleWake}
+          onRetry={handleRetry}
+        />
         <TextPanel
           draft={draft}
           onDraftChange={handleDraftChange}

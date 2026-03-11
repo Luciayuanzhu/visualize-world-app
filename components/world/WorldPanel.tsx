@@ -2,6 +2,7 @@ import type { RefObject } from "react";
 import { VideoStream } from "@/components/world/VideoStream";
 import { WorldOverlay } from "@/components/world/overlays/WorldOverlay";
 import { WorldStatusBar } from "@/components/world/WorldStatusBar";
+import { PRE_WORLD_MIN_CHARACTERS } from "@/lib/session-config";
 import type { LiveState } from "@/types/world";
 
 export function WorldPanel({
@@ -12,6 +13,8 @@ export function WorldPanel({
   liveVideoRef,
   replayMediaUrl,
   replayMediaKind,
+  controlsDisabled = false,
+  onDirectionInteract,
   onBackToCurrent,
   onWake,
   onRetry,
@@ -23,6 +26,8 @@ export function WorldPanel({
   liveVideoRef?: RefObject<HTMLVideoElement | null>;
   replayMediaUrl?: string | null;
   replayMediaKind?: "image" | "video" | null;
+  controlsDisabled?: boolean;
+  onDirectionInteract?: (prompt: string) => void;
   onBackToCurrent?: () => void;
   onWake?: () => void;
   onRetry?: () => void;
@@ -77,8 +82,18 @@ export function WorldPanel({
           </p>
           <h1 className="mt-3 text-4xl font-bold">Write to begin</h1>
           <p className="mt-4 max-w-xl text-base leading-7" style={{ color: "var(--text-secondary)" }}>
-            Write 100 characters to conjure a world.
+            Write {PRE_WORLD_MIN_CHARACTERS} characters to conjure a world.
           </p>
+        </div>
+      ) : null}
+      {liveState !== "idle" && liveState !== "error" && liveState !== "replay" ? (
+        <div className="absolute bottom-4 right-4 grid grid-cols-3 gap-2">
+          <div />
+          <ControlButton disabled={controlsDisabled} label="↑" promptLabel="Move forward" onClick={() => onDirectionInteract?.("Move forward")} />
+          <div />
+          <ControlButton disabled={controlsDisabled} label="←" promptLabel="Turn left" onClick={() => onDirectionInteract?.("Turn left")} />
+          <ControlButton disabled={controlsDisabled} label="↓" promptLabel="Move backward" onClick={() => onDirectionInteract?.("Move backward")} />
+          <ControlButton disabled={controlsDisabled} label="→" promptLabel="Turn right" onClick={() => onDirectionInteract?.("Turn right")} />
         </div>
       ) : null}
       {liveState === "updating" ? (
@@ -94,5 +109,36 @@ export function WorldPanel({
         onRetry={onRetry}
       />
     </section>
+  );
+}
+
+function ControlButton({
+  label,
+  promptLabel,
+  disabled = false,
+  onClick,
+}: {
+  label: string;
+  promptLabel: string;
+  disabled?: boolean;
+  onClick?: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      aria-label={promptLabel}
+      title={promptLabel}
+      className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border text-lg font-semibold transition disabled:cursor-not-allowed disabled:opacity-35"
+      style={{
+        borderColor: "rgba(255,255,255,0.12)",
+        background: "rgba(8,8,8,0.52)",
+        color: "var(--text-primary)",
+        backdropFilter: "blur(10px)",
+      }}
+    >
+      {label}
+    </button>
   );
 }
