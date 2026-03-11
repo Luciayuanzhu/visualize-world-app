@@ -4,7 +4,7 @@ import { VideoStream } from "@/components/world/VideoStream";
 import { WorldOverlay } from "@/components/world/overlays/WorldOverlay";
 import { WorldStatusBar } from "@/components/world/WorldStatusBar";
 import { PRE_WORLD_MIN_CHARACTERS } from "@/lib/session-config";
-import type { LiveState } from "@/types/world";
+import type { LiveState, SleepReason } from "@/types/world";
 
 export function WorldPanel({
   liveState,
@@ -14,6 +14,7 @@ export function WorldPanel({
   liveVideoRef,
   replayMediaUrl,
   replayMediaKind,
+  sleepReason,
   controlsDisabled = false,
   onDirectionInteract,
   onBackToCurrent,
@@ -27,6 +28,7 @@ export function WorldPanel({
   liveVideoRef?: RefObject<HTMLVideoElement | null>;
   replayMediaUrl?: string | null;
   replayMediaKind?: "image" | "video" | null;
+  sleepReason?: SleepReason;
   controlsDisabled?: boolean;
   onDirectionInteract?: (direction: DirectionControl) => void;
   onBackToCurrent?: () => void;
@@ -104,6 +106,7 @@ export function WorldPanel({
       ) : null}
       <WorldOverlay
         liveState={liveState}
+        sleepReason={sleepReason}
         sceneName={sceneName ?? "Vault Opening"}
         onBackToCurrent={onBackToCurrent}
         onWake={onWake}

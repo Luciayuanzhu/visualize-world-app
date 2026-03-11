@@ -1,4 +1,4 @@
-import type { LiveState } from "@/types/world";
+import type { LiveState, SleepReason } from "@/types/world";
 import { ReplayOverlay } from "@/components/world/overlays/ReplayOverlay";
 import { ResumingOverlay } from "@/components/world/overlays/ResumingOverlay";
 import { SleepOverlay } from "@/components/world/overlays/SleepOverlay";
@@ -7,18 +7,19 @@ import { TransitionOverlay } from "@/components/world/overlays/TransitionOverlay
 
 interface WorldOverlayProps {
   liveState: LiveState;
+  sleepReason?: SleepReason;
   sceneName: string;
   onBackToCurrent?: () => void;
   onWake?: () => void;
   onRetry?: () => void;
 }
 
-export function WorldOverlay({ liveState, sceneName, onBackToCurrent, onWake, onRetry }: WorldOverlayProps) {
+export function WorldOverlay({ liveState, sleepReason, sceneName, onBackToCurrent, onWake, onRetry }: WorldOverlayProps) {
   switch (liveState) {
     case "starting":
       return <StartingOverlay />;
     case "sleeping":
-      return <SleepOverlay onWake={onWake} />;
+      return <SleepOverlay onWake={onWake} reason={sleepReason} />;
     case "resuming":
       return <ResumingOverlay />;
     case "transitioning":

@@ -9,6 +9,8 @@ export type LiveState =
   | "replay"
   | "error";
 
+export type SleepReason = "manual" | "timeout" | "disconnect";
+
 export type ActionPlan =
   | { type: "noop" }
   | { type: "interact"; prompt: string }

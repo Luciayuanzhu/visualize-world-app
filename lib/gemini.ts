@@ -76,7 +76,7 @@ async function generateJson<T>(prompt: string, schema: z.ZodSchema<T>) {
   const fenced = raw.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
 
   try {
-    return schema.parse(JSON.parse(fenced));
+    return schema.parse(JSON.parse(fenced)) as T;
   } catch (error) {
     console.error("Gemini JSON parse failed", error, fenced);
     return null;
@@ -97,7 +97,7 @@ export async function evolveWorld(input: EvolveRequest): Promise<EvolveResponse>
     };
   }
 
-  const generated = await generateJson(
+  const generated = (await generateJson(
     [
       "You are a world-state compiler for a writing application with a live visual world.",
       "Use the user's latest text delta and current world state to decide whether the world should stay in the same scene or transition.",
@@ -106,6 +106,8 @@ export async function evolveWorld(input: EvolveRequest): Promise<EvolveResponse>
       "- Prefer interact for additions, mood shifts, lighting changes, and detail changes.",
       "- Use transition only for clear scene/location/time changes.",
       "- Prompts must be short, concrete, visual, and suitable for a live world model.",
+      "- Prefer continuous first-person exploratory camera language over cinematic cuts when the user is moving through a world.",
+      "- Keep world-state camera cues grounded in continuous exploration, such as first-person exploratory, slow forward drift, or in-place turn.",
       "- If no meaningful change exists, return noop.",
       "",
       "JSON shape:",
@@ -126,7 +128,7 @@ export async function evolveWorld(input: EvolveRequest): Promise<EvolveResponse>
             mood: "string",
             characters: ["string"],
             props: ["string"],
-            camera: "string",
+            camera: "string such as first-person exploratory",
           },
           directorCues: ["string"],
         },
@@ -137,7 +139,7 @@ export async function evolveWorld(input: EvolveRequest): Promise<EvolveResponse>
       `Latest text delta: ${delta}`,
     ].join("\n"),
     evolveOutputSchema,
-  );
+  )) as EvolveResponse | null;
 
   if (generated) {
     return generated;
@@ -147,12 +149,13 @@ export async function evolveWorld(input: EvolveRequest): Promise<EvolveResponse>
 }
 
 export async function reconstructWorldState(input: ReconstructWorldStateInput): Promise<ReconstructResponse> {
-  const generated = await generateJson(
+  const generated = (await generateJson(
     [
       "You are reconstructing a concise start prompt for a live visual world that is waking from rest.",
       "Return valid JSON only.",
       "The prompt should describe the current scene as it exists now, not retell prior events.",
       "Use concrete visual language and keep it under 35 words.",
+      "Favor a continuous first-person exploratory viewpoint when appropriate.",
       `Session title: ${input.sessionTitle ?? "Untitled World"}`,
       input.sceneTitle ? `Scene title: ${input.sceneTitle}` : "",
       `Current world state: ${JSON.stringify(input.worldState ?? DEMO_WORLD_STATE)}`,
@@ -164,7 +167,7 @@ export async function reconstructWorldState(input: ReconstructWorldStateInput): 
       .filter(Boolean)
       .join("\n"),
     reconstructOutputSchema,
-  );
+  )) as ReconstructResponse | null;
 
   if (generated) {
     return generated;

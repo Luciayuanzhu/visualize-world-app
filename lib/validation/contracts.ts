@@ -1,22 +1,31 @@
 import { z } from "zod";
 
+const nullableString = () =>
+  z.preprocess((value) => (value === null ? undefined : value), z.string().optional()) as z.ZodType<
+    string | undefined,
+    z.ZodTypeDef,
+    unknown
+  >;
+const nullableStringArray = () =>
+  z.preprocess((value) => (value === null ? [] : value), z.array(z.string())) as z.ZodType<string[], z.ZodTypeDef, unknown>;
+
 export const sceneStateSchema = z.object({
-  location: z.string().optional(),
-  timeOfDay: z.string().optional(),
-  weather: z.string().optional(),
-  mood: z.string().optional(),
-  characters: z.array(z.string()),
-  props: z.array(z.string()),
-  camera: z.string().optional(),
+  location: nullableString(),
+  timeOfDay: nullableString(),
+  weather: nullableString(),
+  mood: nullableString(),
+  characters: nullableStringArray(),
+  props: nullableStringArray(),
+  camera: nullableString(),
 });
 
 export const worldStateSchema = z.object({
   canonFacts: z.array(z.string()),
   sceneState: sceneStateSchema,
   styleGuide: z.object({
-    realism: z.string().optional(),
-    palette: z.string().optional(),
-    motionStyle: z.string().optional(),
+    realism: nullableString(),
+    palette: nullableString(),
+    motionStyle: nullableString(),
   }),
   directorCues: z.array(z.string()),
 });

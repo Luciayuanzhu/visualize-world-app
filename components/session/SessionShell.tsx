@@ -24,7 +24,7 @@ import type {
   UpdateSessionRequest,
   WakeSessionResponse,
 } from "@/types/api";
-import type { LiveState, WorldState } from "@/types/world";
+import type { LiveState, SleepReason, WorldState } from "@/types/world";
 
 interface SceneDraftState {
   id: string;
@@ -83,6 +83,7 @@ export function SessionShell({
   const [replayMediaUrl, setReplayMediaUrl] = useState<string | null>(null);
   const [replayMediaKind, setReplayMediaKind] = useState<"image" | "video" | null>(null);
   const [liveMediaStream, setLiveMediaStream] = useState<MediaStream | null>(null);
+  const [sleepReason, setSleepReason] = useState<SleepReason>("manual");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [assistLoadingAction, setAssistLoadingAction] = useState<"continue" | "polish" | null>(null);
   const [odysseyConfig, setOdysseyConfig] = useState<OdysseyClientConfigResponse>({ enabled: false, mode: "mock" });
@@ -90,6 +91,8 @@ export function SessionShell({
   const liveVideoRef = useRef<HTMLVideoElement | null>(null);
   const autosaveTimeoutRef = useRef<number | null>(null);
   const liveStateRef = useRef<LiveState>(initialLiveState);
+  const sleepReasonRef = useRef<SleepReason>("manual");
+  const pendingSleepReasonRef = useRef<SleepReason | null>(null);
   const currentSceneIdRef = useRef<string | null>(activeSceneId);
   const currentSceneStartedRef = useRef(initialSceneStarted);
   const lastPersistedSceneIdRef = useRef<string | null>(activeSceneId);
@@ -126,6 +129,10 @@ export function SessionShell({
   useEffect(() => {
     liveStateRef.current = liveState;
   }, [liveState]);
+
+  useEffect(() => {
+    sleepReasonRef.current = sleepReason;
+  }, [sleepReason]);
 
   useEffect(() => {
     currentSceneIdRef.current = currentSceneId;
@@ -316,6 +323,8 @@ export function SessionShell({
         odysseyClientRef.current = createOdysseyClient(config, {
           onConnected(stream) {
             if (!cancelled) {
+              pendingSleepReasonRef.current = null;
+              setSleepReason("manual");
               setLiveMediaStream(stream);
               if (
                 liveStateRef.current === "starting" ||
@@ -330,26 +339,36 @@ export function SessionShell({
           onDisconnected() {
             if (!cancelled) {
               setLiveMediaStream(null);
+              const nextSleepReason = pendingSleepReasonRef.current ?? sleepReasonRef.current ?? "disconnect";
               void logClientEvent("warn", "odyssey stream disconnected", {
                 replayMode: replayModeRef.current,
+                sleepReason: nextSleepReason,
               });
               if (!replayModeRef.current && currentSceneStartedRef.current) {
+                setSleepReason(nextSleepReason === "manual" ? "disconnect" : nextSleepReason);
                 setLiveState("sleeping");
               }
             }
           },
           onStreamEnded() {
             if (!cancelled) {
+              const nextSleepReason = pendingSleepReasonRef.current ?? sleepReasonRef.current ?? "disconnect";
               void logClientEvent("info", "odyssey stream ended", {
                 replayMode: replayModeRef.current,
+                sleepReason: nextSleepReason,
               });
               if (!replayModeRef.current && currentSceneStartedRef.current) {
+                setSleepReason(nextSleepReason === "manual" ? "disconnect" : nextSleepReason);
                 setLiveState("sleeping");
               }
             }
           },
           onStreamError(reason, message) {
             if (!cancelled) {
+              if (reason === "session_timeout") {
+                pendingSleepReasonRef.current = "timeout";
+                setSleepReason("timeout");
+              }
               void logClientEvent("error", "odyssey stream error", {
                 reason,
                 message,
@@ -505,6 +524,8 @@ export function SessionShell({
     if (!odysseyClientRef.current) {
       odysseyClientRef.current = createOdysseyClient(odysseyConfig, {
         onConnected(stream) {
+          pendingSleepReasonRef.current = null;
+          setSleepReason("manual");
           setLiveMediaStream(stream);
           if (
             liveStateRef.current === "starting" ||
@@ -517,22 +538,32 @@ export function SessionShell({
         },
         onDisconnected() {
           setLiveMediaStream(null);
+          const nextSleepReason = pendingSleepReasonRef.current ?? sleepReasonRef.current ?? "disconnect";
           void logClientEvent("warn", "odyssey stream disconnected", {
             replayMode: replayModeRef.current,
+            sleepReason: nextSleepReason,
           });
           if (!replayModeRef.current && currentSceneStartedRef.current) {
+            setSleepReason(nextSleepReason === "manual" ? "disconnect" : nextSleepReason);
             setLiveState("sleeping");
           }
         },
         onStreamEnded() {
+          const nextSleepReason = pendingSleepReasonRef.current ?? sleepReasonRef.current ?? "disconnect";
           void logClientEvent("info", "odyssey stream ended", {
             replayMode: replayModeRef.current,
+            sleepReason: nextSleepReason,
           });
           if (!replayModeRef.current && currentSceneStartedRef.current) {
+            setSleepReason(nextSleepReason === "manual" ? "disconnect" : nextSleepReason);
             setLiveState("sleeping");
           }
         },
         onStreamError(reason, message) {
+          if (reason === "session_timeout") {
+            pendingSleepReasonRef.current = "timeout";
+            setSleepReason("timeout");
+          }
           void logClientEvent("error", "odyssey stream error", {
             reason,
             message,
@@ -789,6 +820,8 @@ export function SessionShell({
     }
 
     setIsSubmitting(true);
+    pendingSleepReasonRef.current = null;
+    setSleepReason("manual");
     setLiveState(hasWorldStarted ? "updating" : "starting");
 
     try {
@@ -868,6 +901,8 @@ export function SessionShell({
     }
 
     setIsSubmitting(true);
+    pendingSleepReasonRef.current = null;
+    setSleepReason("manual");
 
     try {
       const previousSceneId = currentScene?.id ?? null;
@@ -909,6 +944,7 @@ export function SessionShell({
       setReplaySceneId(null);
       setReplayMediaUrl(null);
       setReplayMediaKind(null);
+      setSleepReason("manual");
       setLiveState("idle");
 
       startTransition(() => {
@@ -956,6 +992,7 @@ export function SessionShell({
       setReplaySceneId(null);
       setReplayMediaUrl(null);
       setReplayMediaKind(null);
+      setSleepReason("manual");
       setLiveState(previousScene.hasStarted ? "sleeping" : "idle");
 
       startTransition(() => {
@@ -998,6 +1035,7 @@ export function SessionShell({
       setReplaySceneId(null);
       setReplayMediaUrl(null);
       setReplayMediaKind(null);
+      setSleepReason("manual");
       setLiveState(nextScene.hasStarted ? "sleeping" : "idle");
 
       startTransition(() => {
@@ -1040,6 +1078,7 @@ export function SessionShell({
     setReplaySceneId(null);
     setReplayMediaUrl(null);
     setReplayMediaKind(null);
+    setSleepReason("manual");
     setLiveState(currentSceneStarted ? "sleeping" : "idle");
   }
 
@@ -1051,6 +1090,8 @@ export function SessionShell({
     setIsSubmitting(true);
 
     try {
+      pendingSleepReasonRef.current = "manual";
+      setSleepReason("manual");
       await flushDraftAutosave();
       await endActiveStream(currentSceneId, currentScene?.latestSegmentId ?? null);
 
@@ -1089,6 +1130,8 @@ export function SessionShell({
       return;
     }
 
+    pendingSleepReasonRef.current = null;
+    setSleepReason("manual");
     setLiveState("resuming");
 
     try {
@@ -1145,6 +1188,7 @@ export function SessionShell({
           liveVideoRef={liveVideoRef}
           replayMediaUrl={replayMediaUrl}
           replayMediaKind={replayMediaKind}
+          sleepReason={sleepReason}
           controlsDisabled={isSubmitting || replayMode}
           onDirectionInteract={handleDirectionalInteract}
           onBackToCurrent={handleBackToCurrent}
