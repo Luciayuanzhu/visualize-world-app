@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { TopBar } from "@/components/layout/TopBar";
+import { SessionGrid } from "@/components/session/SessionGrid";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -33,6 +34,13 @@ export default async function SessionsPage() {
     const latestDraft = session.revisions[0]?.content.trim() ?? "";
     return session.scenes.length > 0 || latestDraft.length > 0 || session.title !== "Untitled World";
   });
+  const sessionCards = visibleSessions.map((session) => ({
+    id: session.id,
+    title: session.title,
+    sceneCount: session.scenes.length,
+    previewUrl:
+      [...session.scenes].reverse().find((scene) => scene.segments[0]?.lastFrameDataUrl)?.segments[0]?.lastFrameDataUrl ?? null,
+  }));
 
   return (
     <div className="min-h-screen">
@@ -70,39 +78,7 @@ export default async function SessionsPage() {
                 Pick up where you left off in your writing workflow.
               </p>
             </div>
-            <div className="grid gap-6 md:grid-cols-3">
-              {visibleSessions.map((session) => {
-                const previewUrl =
-                  [...session.scenes].reverse().find((scene) => scene.segments[0]?.lastFrameDataUrl)?.segments[0]?.lastFrameDataUrl ?? null;
-
-                return (
-                  <Link
-                    key={session.id}
-                    href={`/session/${session.id}`}
-                    className="cursor-pointer rounded-[20px] border p-4 transition duration-150 hover:-translate-y-0.5 hover:brightness-110"
-                    style={{ borderColor: "var(--border)", background: "rgba(23,18,13,0.9)" }}
-                  >
-                    <div
-                      className="aspect-video rounded-[14px] border bg-cover bg-center"
-                      style={{
-                        borderColor: "rgba(255,255,255,0.05)",
-                        backgroundImage: previewUrl ? `linear-gradient(180deg, rgba(10,9,7,0.08), rgba(10,9,7,0.28)), url("${previewUrl}")` : undefined,
-                        background:
-                          previewUrl === null
-                            ? "linear-gradient(180deg, rgba(255,233,181,0.12), rgba(15,12,8,0.72)), linear-gradient(140deg, #15110c, #6a4d24 48%, #120d09)"
-                            : undefined,
-                      }}
-                    />
-                    <div className="mt-4">
-                      <h2 className="text-lg font-bold">{session.title}</h2>
-                      <p className="mt-1 text-sm" style={{ color: "var(--text-secondary)" }}>
-                        {session.scenes.length} scenes
-                      </p>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
+            <SessionGrid sessions={sessionCards} />
           </>
         )}
       </main>
