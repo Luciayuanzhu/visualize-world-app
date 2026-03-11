@@ -96,19 +96,19 @@ export default async function SessionPage({
   }
 
   const detail = toSessionDetail(session);
+  const activeScene =
+    detail.scenes.find((scene) => scene.id === detail.currentSceneId) ??
+    detail.scenes[detail.scenes.length - 1] ??
+    null;
   const explicitState = parseLiveState(state);
   const derivedState =
     explicitState !== "idle"
       ? explicitState
       : detail.status === "sleeping"
         ? "sleeping"
-        : detail.scenes.some((scene) => scene.hasStarted)
-          ? "live"
+        : activeScene?.hasStarted
+          ? "sleeping"
           : "idle";
-  const activeScene =
-    detail.scenes.find((scene) => scene.id === detail.currentSceneId) ??
-    detail.scenes[detail.scenes.length - 1] ??
-    null;
 
   return (
     <SessionShell

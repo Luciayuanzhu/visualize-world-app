@@ -37,7 +37,7 @@ export function WorldPanel({
       ? replayMediaKind === "image"
         ? replayMediaUrl
         : null
-      : liveState === "sleeping" || liveState === "resuming"
+      : liveState === "sleeping" || liveState === "resuming" || (liveState === "live" && !liveMediaStream)
         ? currentFrameUrl
         : null;
 

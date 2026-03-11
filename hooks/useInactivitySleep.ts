@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
-export function useInactivitySleep(timeoutMs: number, onSleep?: () => void, backgroundTimeoutMs = 60_000) {
+export function useInactivitySleep(timeoutMs: number | null, onSleep?: () => void, backgroundTimeoutMs = 60_000) {
   const timerRef = useRef<number | null>(null);
 
   const clearTimer = useCallback(() => {
@@ -23,16 +23,33 @@ export function useInactivitySleep(timeoutMs: number, onSleep?: () => void, back
   );
 
   const resetInactivityTimer = useCallback(() => {
+    if (timeoutMs === null) {
+      clearTimer();
+      return;
+    }
+
     scheduleSleep(timeoutMs);
-  }, [scheduleSleep, timeoutMs]);
+  }, [clearTimer, scheduleSleep, timeoutMs]);
 
   useEffect(() => {
     const activityEvents: Array<keyof WindowEventMap> = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"];
     const handleVisibilityChange = () => {
-      scheduleSleep(document.hidden ? backgroundTimeoutMs : timeoutMs);
+      if (document.hidden) {
+        scheduleSleep(backgroundTimeoutMs);
+        return;
+      }
+
+      if (timeoutMs === null) {
+        clearTimer();
+        return;
+      }
+
+      scheduleSleep(timeoutMs);
     };
 
-    resetInactivityTimer();
+    if (timeoutMs !== null) {
+      resetInactivityTimer();
+    }
     activityEvents.forEach((eventName) => {
       window.addEventListener(eventName, resetInactivityTimer, { passive: true });
     });

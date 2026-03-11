@@ -340,7 +340,7 @@ export function SessionShell({
   }, [logClientEvent]);
 
   useInactivitySleep(
-    8 * 60_000,
+    null,
     () => {
       if (currentSceneStarted && !replayMode && !isSubmitting && (liveState === "live" || liveState === "updating")) {
         void handleSleep();
